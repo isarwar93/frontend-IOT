@@ -7,18 +7,6 @@ import { Button } from "@/components/ui/Button";
 
 export const ConfigPage: React.FC = () => {
 
-  const setSensors = useUIStore((s) => s.setSensors);
-
-  const handleFetchSensors = () => {
-    // simulate backend call for now
-    const fakeSensors = [
-      { id: 's1', name: 'Temperature Sensor', type: 'temperature', unit: '°C' },
-      { id: 's2', name: 'Humidity Sensor', type: 'humidity', unit: '%' },
-      { id: 's3', name: 'Voltage Probe', type: 'voltage', unit: 'V' },
-    ];
-    setSensors(fakeSensors);
-  };
-
 
   const sensors = useUIStore((s) => s.sensors);
 
@@ -82,19 +70,9 @@ export const ConfigPage: React.FC = () => {
                 className="hidden"
               />
             </label>
-                                
-                <Button onClick={handleFetchSensors} variant="outline">
-                    🔍 Discover Sensors
-                </Button>
+      
             </div>
 
-            <ul className="mt-4 space-y-2 text-sm">
-                  {sensors.map((sensor) => (
-                    <li key={sensor.id} className="border rounded px-3 py-2 bg-muted">
-                      <strong>{sensor.name}</strong> ({sensor.type}) — {sensor.unit}
-                    </li>
-                  ))}
-                </ul>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
       

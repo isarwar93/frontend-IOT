@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { Sidebar } from './components/Sidebar';
 import { DashboardPage } from './pages/Dashboard';
+import { SensorConfigPage } from './pages/SensorConfig';
 import { ConfigPage } from './pages/Configuration';
 import { SettingsPage } from './pages/Settings';
 import TopBar from './components/TopBar';
@@ -69,6 +70,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<DashboardPage nickname={nickname} room={room} />} />
           <Route path="/dashboard/*" element={<DashboardPage nickname={nickname} room={room} />} />
+          <Route path="/sensor-config" element={<SensorConfigPage />} />
           <Route path="/configuration" element={<ConfigPage />} />
           <Route path="/settings" element={<SettingsPage />} />
 

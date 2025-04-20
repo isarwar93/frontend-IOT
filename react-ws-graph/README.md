@@ -1,34 +1,50 @@
-We’ll use Vite + React + TypeScript + Tailwind CSS + Recharts.
+# Frontend IOT
+
+A flexible frontend idea to visualize and analyse the IOT sensors data. It is a work in progress and hobby project. So, it will be updated slowly.
+
+## Following technologies are being used
+
+Vite + React + TypeScript + Tailwind CSS + Recharts.
+
+
+## To run for the first time
+
+```bash
+npm install
 
 npm install clsx tailwind-variants lucide-react
+
 npx shadcn@latest init
+
 npm install recharts classnames
-npm install -D tailwindcss postcss autoprefixer  --> latest tailwind 
 
-npx tailwindcss-cli@latest init -> (tick) this one works to create tailwind.config.js
-npm install tailwindcss @tailwindcss/vite  -> (also work)
-
-or 
 npm install -D tailwindcss@3 postcss autoprefixer
+
 npx tailwindcss init -p  
 
-
-
-
 npm install --save-dev @types/node
+
 npm install next-themes
+
 npm install lucide-react
+
 npm install recharts
+
 npm install react-fps-stats
+
 npm install html2canvas
 
 npm install react-heatmap-grid
+```
 
 
-# run the dev server
+
+# To run the in development environment
+```bash
 npm run dev
+```
 
-# In the frontend, we'll assume sensor data comes in this format:
+# In the frontend, we'll assume sensor data comes in this format
 
 type SensorMetadata = {
   id: string;

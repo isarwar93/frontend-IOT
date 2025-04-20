@@ -1,14 +1,18 @@
-// src/store/useUIStore.ts
 import { create } from 'zustand';
-
-
-
 
 type Tab = 'graph' | 'heatmap' | 'chat';
 type Section = 'dashboard' | 'settings' | 'config';
 
-interface UIState {
+interface Sensor {
+  id: string;
+  name: string;
+  type: string;
+  unit: string;
+  graphWindow?: number;
+  waveformIndex?: number;
+}
 
+interface UIState {
   loadConfig: (config: Partial<UIState>) => void;
 
   color: string;
@@ -16,7 +20,6 @@ interface UIState {
 
   useBar: boolean;
   toggleUseBar: () => void;
-
 
   fixedYAxis: boolean;
   toggleFixedYAxis: () => void;
@@ -29,8 +32,6 @@ interface UIState {
 
   bufferSize: number;
   setBufferSize: (val: number) => void;
-
-
 
   activeTab: Tab;
   setActiveTab: (tab: Tab) => void;
@@ -65,15 +66,13 @@ interface UIState {
   graphHeight: number;
   setGraphHeight: (val: number) => void;
 
-
-
-  sensors: SensorMetadata[];
-  setSensors: (sensors: SensorMetadata[]) => void;
-
+  sensors: Sensor[];
+  setSensors: (s: Sensor[]) => void;
+  addSensor: (sensor: Sensor) => void;
+  updateSensorAssignment: (id: string, updates: Partial<Sensor>) => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
-
   loadConfig: (config: Partial<UIState>) => set(config),
 
   color: "#6366f1",
@@ -103,7 +102,6 @@ export const useUIStore = create<UIState>((set) => ({
   showFps: true,
   toggleFps: () => set((s) => ({ showFps: !s.showFps })),
 
-
   showGrid: true,
   toggleGrid: () => set((s) => ({ showGrid: !s.showGrid })),
 
@@ -122,13 +120,23 @@ export const useUIStore = create<UIState>((set) => ({
   showPoints: true,
   togglePoints: () => set((s) => ({ showPoints: !s.showPoints })),
 
-  graphWidth: 100, // default width in %
-  setGraphWidth: (val: number) => set({ graphWidth: val }),
+  graphWidth: 100,
+  setGraphWidth: (val) => set({ graphWidth: val }),
 
-  graphHeight: 300, // default height in px
-  setGraphHeight: (val: number) => set({ graphHeight: val }),
-
+  graphHeight: 300,
+  setGraphHeight: (val) => set({ graphHeight: val }),
 
   sensors: [],
   setSensors: (sensors) => set({ sensors }),
+
+  addSensor: (sensor) => set((state) => ({
+    sensors: [...state.sensors.filter((s) => s.id !== sensor.id), sensor],
+  })),
+
+  updateSensorAssignment: (id, updates) =>
+    set((state) => ({
+      sensors: state.sensors.map((s) =>
+        s.id === id ? { ...s, ...updates } : s
+      ),
+    })),
 }));
