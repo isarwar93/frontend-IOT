@@ -15,7 +15,7 @@ export const Sidebar: React.FC = () => {
 
   const items = [
     { name: "Dashboard", icon: "🏠", path: "/dashboard" },
-    { name: "Sensor Config", icon: "⚙️", path: "/sensor-config" },
+    { name: "Sensor Config", icon: "🔌", path: "/sensor-config" },
     { name: "Configuration", icon: "⚙️", path: "/configuration" },
     { name: "Settings", icon: "🧩", path: "/settings" },
   ];

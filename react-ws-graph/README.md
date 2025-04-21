@@ -39,20 +39,21 @@ npm install react-heatmap-grid
 
 
 
-# To run the in development environment
+# To run in the development environment
 ```bash
 npm run dev
 ```
 
 # In the frontend, we'll assume sensor data comes in this format
 
+```json
 type SensorMetadata = {
   id: string;
   name: string;
   type: 'temperature' | 'humidity' | 'voltage' | 'custom';
   unit: string;
 };
-
+```
 
 # React + TypeScript + Vite
 
