@@ -70,6 +70,9 @@ interface UIState {
   setSensors: (s: Sensor[]) => void;
   addSensor: (sensor: Sensor) => void;
   updateSensorAssignment: (id: string, updates: Partial<Sensor>) => void;
+
+  username: string;
+  setUsername: (name: string) => void;
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -139,4 +142,8 @@ export const useUIStore = create<UIState>((set) => ({
         s.id === id ? { ...s, ...updates } : s
       ),
     })),
+
+
+    username: "",
+    setUsername: (name) => set({ username: name }),
 }));

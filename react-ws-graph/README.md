@@ -35,18 +35,20 @@ npm install react-fps-stats
 npm install html2canvas
 
 npm install react-heatmap-grid
+
+npm install axios  -> (for HTTP requests)
 ```
 
 
 
-# To run in the development environment
+## To run in the development environment
 ```bash
 npm run dev
 ```
 
-# In the frontend, we'll assume sensor data comes in this format
+## In the frontend, we'll assume sensor data comes in this format
 
-```json
+```Json
 type SensorMetadata = {
   id: string;
   name: string;
@@ -55,7 +57,7 @@ type SensorMetadata = {
 };
 ```
 
-# React + TypeScript + Vite
+## React + TypeScript + Vite
 
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 

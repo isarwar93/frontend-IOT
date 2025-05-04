@@ -8,7 +8,7 @@ import { useNavigate } from "react-router-dom";
 
 interface Props {
   nickname: string;
-  room: string;
+  username: string;
 }
 
 const tabs = [
@@ -17,7 +17,7 @@ const tabs = [
   { key: "chat", label: "Chat", icon: MessageSquare },
 ];
 
-export const DashboardPage: React.FC<Props> = ({ nickname, room }) => {
+export const DashboardPage: React.FC<Props> = ({ nickname, username }) => {
   const activeTab = useUIStore((s) => s.activeTab);
   const setActiveTab = useUIStore((s) => s.setActiveTab);
   const navigate = useNavigate();
@@ -32,9 +32,9 @@ export const DashboardPage: React.FC<Props> = ({ nickname, room }) => {
       case "heatmap":
         return <HeatMapView />;
       case "chat":
-        return <ChatView nickname={nickname} room={room} />;
+        return <ChatView nickname={nickname} user ={username} />;
       default:
-        return <GraphView nickname={nickname} room={room} />;
+        return <GraphView nickname={nickname} user ={username} />;
     }
   };
 

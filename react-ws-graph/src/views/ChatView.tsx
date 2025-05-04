@@ -1,42 +1,47 @@
 // src/views/ChatView.tsx
 import React, { useEffect, useRef, useState } from "react";
+import { useWebSockets } from "../../hooks/useWebSockets";
+import { useUIStore } from "@/store/useUIStore";
 
 interface Props {
   nickname: string;
-  room: string;
+  user: string;
 }
 
-export const ChatView: React.FC<Props> = ({ nickname, room }) => {
+export const ChatView: React.FC<Props> = ({ nickname, user }) => {
+  const username = useUIStore((s) => s.username);
   const [messages, setMessages] = useState<string[]>([]);
   const [message, setMessage] = useState("");
-  const socketRef = useRef<WebSocket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
-  // Auto-scroll on new message
+  // Scroll to bottom on new message
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // WebSocket setup
+  const onChatMessage = (msg: string) => {
+    setMessages((prev) => [...prev, msg]);
+  };
+
+  // Use shared WebSocket hook only when username is available
+  const ws = username
+    ? useWebSockets({
+        nickname,
+        paused: false,
+        onChatMessage,
+        onGraphData: () => {},
+        onConnect: () => console.log("✅ Chat connected"),
+        onDisconnect: () => console.log("❌ Chat disconnected"),
+      })
+    : { sendMessage: () => {}, disconnect: () => {} };
+
   useEffect(() => {
-    const ws = new WebSocket(`ws://192.168.1.106:8000/ws/chat/${room}?nickname=${nickname}`);
-    socketRef.current = ws;
-
-    ws.onopen = () => console.log("✅ Chat WebSocket connected");
-
-    ws.onmessage = (e) => {
-      setMessages((prev) => [...prev, e.data]);
-    };
-
-    ws.onclose = () => console.log("❌ Chat WebSocket closed");
-    ws.onerror = (err) => console.error("Chat WebSocket error", err);
-
-    return () => ws.close(); // cleanup
-  }, [room, nickname]);
+    return () => ws.disconnect?.(); // cleanup
+  }, [user, nickname]);
 
   const sendMessage = () => {
-    if (!message.trim() || socketRef.current?.readyState !== WebSocket.OPEN) return;
-    socketRef.current.send(message);
+    if (!message.trim()) return;
+    ws.sendMessage(message);
     setMessage("");
   };
 
