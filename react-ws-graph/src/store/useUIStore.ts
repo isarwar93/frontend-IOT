@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-type Tab = 'graph' | 'heatmap' | 'chat';
+type Tab = 'graph' | 'video' |'analysis'|'chat';
 type Section = 'dashboard' | 'settings' | 'config';
 
 interface Sensor {

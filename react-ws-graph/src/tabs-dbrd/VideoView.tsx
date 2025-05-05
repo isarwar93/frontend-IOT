@@ -18,7 +18,7 @@ const palettes = {
   purple: "rgba(168, 85, 247,", // purple-500
 };
 
-export const HeatMapView: React.FC = () => {
+export const VideoView: React.FC = () => {
   const [colorBase, setColorBase] = useState(palettes.blue);
   const containerRef = useRef<HTMLDivElement>(null);
 

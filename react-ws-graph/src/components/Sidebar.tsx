@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { NavLink } from "react-router-dom";
+// import { Link } from 'react-router-dom';
 import { ChevronLeft} from "lucide-react";
 import {FpsCounter} from "./FpsCounter";
 import { useUIStore } from "../store/useUIStore"; // adjust path
@@ -16,7 +17,8 @@ export const Sidebar: React.FC = () => {
   const items = [
     { name: "Dashboard", icon: "🏠", path: "/dashboard" },
     { name: "Sensor Config", icon: "🔌", path: "/sensor-config" },
-    { name: "Configuration", icon: "⚙️", path: "/configuration" },
+    { name: "Layout Config", icon: "🧱", path: "/layout-config" },
+    { name: "General Config", icon: "⚙️", path: "/configuration" },
     { name: "Settings", icon: "🧩", path: "/settings" },
   ];
 
