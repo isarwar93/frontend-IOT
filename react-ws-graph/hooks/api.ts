@@ -3,7 +3,8 @@ import { useUIStore } from "@/store/useUIStore";
 
 
 // Backend base URL (adjust if needed)
-const BASE_URL = "http://192.168.1.106:8000";  // Change to your backend's IP/Port
+
+const BASE_URL = import.meta.env.VITE_API_BASE_URL;  // Change to your backend's IP/Port
 
 export async function login(username: string, password: string): Promise<boolean> {
     try {

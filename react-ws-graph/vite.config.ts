@@ -9,4 +9,9 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'), // ✅ this is the key
     },
   },
+    server: {
+    port: 5173
+  },
 });
+
+

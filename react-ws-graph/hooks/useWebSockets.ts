@@ -3,6 +3,8 @@ import { useEffect, useRef } from "react";
 import { GraphData } from "../types";
 import { useUIStore } from "@/store/useUIStore";
 
+const BASE_URL = import.meta.env.VITE_API_BASE_URL_WS;  // Change to your backend's IP/Port
+
 interface Props {
   nickname: string;
   onChatMessage: (msg: string) => void;
@@ -45,10 +47,10 @@ export const useWebSockets = ({
       return;
     }
 
-    const chatUrl = `ws://192.168.1.106:8000/ws/chat/${encodeURIComponent(
+    const chatUrl = `${BASE_URL}/ws/chat/${encodeURIComponent(
       username
     )}?nickname=${encodeURIComponent(nickname)}`;
-    const graphUrl = `ws://192.168.1.106:8000/ws/graph/${encodeURIComponent(
+    const graphUrl = `${BASE_URL}/ws/graph/${encodeURIComponent(
       username
     )}?nickname=${encodeURIComponent(nickname)}`;
 
