@@ -1,0 +1,23 @@
+This project includes third-party components, which are licensed separately from the main project:
+
+---
+
+📦 lightningcss  
+- License: Mozilla Public License 2.0 (MPL-2.0)  
+- Source: https://github.com/parcel-bundler/lightningcss  
+- Note: Used as-is. No modifications made.  
+- See: node_modules/lightningcss/LICENSE
+
+---
+
+📦 caniuse-lite  
+- License: Creative Commons Attribution 4.0 International (CC-BY-4.0)  
+- Source: https://github.com/browserslist/caniuse-lite  
+- Author: Ben Briggs (http://beneb.info)  
+- Note: Used as-is. Attribution required per license terms.  
+- See: node_modules/caniuse-lite/LICENSE
+
+---
+
+Other third-party dependencies are under permissive licenses (MIT, ISC, Apache-2.0, BSD) and compatible with this project’s MIT license.
+

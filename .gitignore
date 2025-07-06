@@ -42,3 +42,5 @@ out/
 # Tailwind CSS JIT cache (if used)
 .tailwindcache/
 
+# Other
+local/

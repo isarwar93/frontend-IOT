@@ -9,10 +9,12 @@ const BASE_URL = import.meta.env.VITE_API_BASE_URL;  // Change to your backend's
 export async function login(username: string, password: string): Promise<boolean> {
     try {
         const body = `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`;
+        console.log("trying");
         const response = await axios.post(`${BASE_URL}/login`, body, {
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
         });
-
+        
+        console.log("tried");
         if (response.status === 200) {
           useUIStore.getState().setUsername(username); // Store globally
           return true;
