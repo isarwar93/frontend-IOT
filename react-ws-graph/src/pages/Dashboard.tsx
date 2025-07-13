@@ -1,9 +1,9 @@
 import React from "react";
 import { useUIStore } from "../store/useUIStore";
-import { GraphView } from "../tabs-dbrd/GraphView";
-import { VideoView } from "../tabs-dbrd/VideoView";
-import { ChatView } from "../tabs-dbrd/ChatView";
-import { AnalysisView } from "../tabs-dbrd/AnalysisView";
+import { GraphView } from "../tabs-dashboard/GraphView";
+import { VideoView } from "../tabs-dashboard/VideoView";
+import { ChatView } from "../tabs-dashboard/ChatView";
+import { AnalysisView } from "../tabs-dashboard/AnalysisView";
 import { LineChart, Flame, MessageSquare } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 

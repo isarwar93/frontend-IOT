@@ -1,6 +1,6 @@
 import { useLayoutStore } from '../store/layoutStore';
 
-export default function LayoutConfigPage() {
+export  function LayoutConfigPage() {
   const { config, setConfig } = useLayoutStore();
 
   return (

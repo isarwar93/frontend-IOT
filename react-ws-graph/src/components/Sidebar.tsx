@@ -13,11 +13,11 @@ export const Sidebar: React.FC = () => {
   const [expanded, setExpanded] = useState(true);
   const showFps = useUIStore((s) => s.showFps);
 
-
   const items = [
     { name: "Dashboard", icon: "🏠", path: "/dashboard" },
     { name: "Sensor Config", icon: "🔌", path: "/sensor-config" },
     { name: "Layout Config", icon: "🧱", path: "/layout-config" },
+    { name: "Protocol Config", icon: "📡", path: "/protocol-config" },
     { name: "General Config", icon: "⚙️", path: "/configuration" },
     { name: "Settings", icon: "🧩", path: "/settings" },
   ];

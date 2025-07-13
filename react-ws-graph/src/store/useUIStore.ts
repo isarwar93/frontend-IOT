@@ -2,6 +2,9 @@ import { create } from 'zustand';
 
 type Tab = 'graph' | 'video' |'analysis'|'chat';
 type Section = 'dashboard' | 'settings' | 'config';
+type ProtocolTab = 'ble' | 'mqtt' | 'usb';
+
+
 
 interface Sensor {
   id: string;
@@ -73,6 +76,12 @@ interface UIState {
 
   username: string;
   setUsername: (name: string) => void;
+
+  protocolTab: ProtocolTab;
+  setProtocolTab: (tab: ProtocolTab) => void;
+
+
+  
 }
 
 export const useUIStore = create<UIState>((set) => ({
@@ -146,4 +155,8 @@ export const useUIStore = create<UIState>((set) => ({
 
     username: "",
     setUsername: (name) => set({ username: name }),
+
+  protocolTab: 'ble',
+  setProtocolTab: (tab: ProtocolTab) => set({ protocolTab: tab }),
+
 }));
