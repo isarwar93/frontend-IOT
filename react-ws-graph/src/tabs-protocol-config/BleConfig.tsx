@@ -12,11 +12,15 @@ interface BLEDevice {
 }
 
 type GattCharacteristic = {
+  name: string;
+  path: string;
   uuid: string;
   properties: string[];
 };
 
 type GattService = {
+  name: string;
+  path: string;
   uuid: string;
   characteristics: GattCharacteristic[];
 };
@@ -78,6 +82,8 @@ export const BLEConfig: React.FC = () => {
         const services = await axios.get(`${BASE_URL}/api/ble/services/${device.mac}`);
         console.log("Services:", services.data);
         const cleaned = services.data.map((srv: GattService) => ({
+          name: srv.name,
+          path: srv.path,
           uuid: srv.uuid,
           characteristics: Array.isArray(srv.characteristics)
             ? srv.characteristics.filter((c) => c && c.uuid && Array.isArray(c.properties))
@@ -90,21 +96,37 @@ export const BLEConfig: React.FC = () => {
     }
   };
 
-  const handleDisconnect = (mac: string) => {
-    setConnectedDevices((prev) => prev.filter((d) => d.mac !== mac));
-    const { [mac]: _, ...rest } = gattMap;
-    setGattMap(rest);
-    setExpanded((prev) => ({ ...prev, [mac]: false }));
+  const handleDisconnect = async (mac: string) => {
+    try {
+      await axios.post(`${BASE_URL}/api/ble/disconnect`, { mac }, {
+        headers: { "Content-Type": "application/json" },
+      });
+
+      setConnectedDevices((prev) => prev.filter((d) => d.mac !== mac));
+      setGattMap((prev) => {
+        const { [mac]: _, ...rest } = prev;
+        return rest;
+      });
+      setSelectedChars([]);
+      setConnectionStatus((prev) => ({ ...prev, [mac]: "🔌 Disconnected" }));
+      console.log("Disconnected from:", mac);
+    } catch (error) {
+      console.error("Disconnection failed:", error);
+      setConnectionStatus((prev) => ({ ...prev, [mac]: "❌ Disconnection failed" }));
+    }
   };
 
-  const handleNotifyToggle = async (mac: string, uuid: string) => {
-    const id = `${mac}-${uuid}`;
+
+  const handleNotifyToggle = async (mac: string, path: string, uuid: string) => {
+    const id = `${mac}-${path}-${uuid}`;
+    console.log("Toggling notify for:", id);
     const next = !notificationMap[id];
     setNotificationMap((prev) => ({ ...prev, [id]: next }));
 
     try {
       await axios.post(`${BASE_URL}/api/ble/notify`, {
         mac,
+        path,
         uuid,
         enable: next,
       });
@@ -131,7 +153,7 @@ export const BLEConfig: React.FC = () => {
 
   const handleRead = async (mac: string, uuid: string) => {
     try {
-      const res = await axios.get(`${BASE_URL}/api/ble/read?device=${mac}&uuid=${uuid}`);
+      const res = await axios.get(`${BASE_URL}/api/ble/read/mac=${mac}/uuid=${uuid}`);
       alert(`Read from ${uuid}: ${res.data.value}`);
     } catch {
       alert("Read failed");
@@ -163,8 +185,8 @@ export const BLEConfig: React.FC = () => {
 
   const enableSelectedNotify = async () => {
     for (const cid of selectedChars) {
-      const [mac, uuid] = cid.split("-");
-      await handleNotifyToggle(mac, uuid);
+      const [mac, path, uuid] = cid.split("-");
+      await handleNotifyToggle(mac, path, uuid);
     }
   };
 
@@ -256,10 +278,13 @@ export const BLEConfig: React.FC = () => {
             </div>
 
             {expanded[dev.mac] && Array.isArray(gattMap[dev.mac]) && (
+              
               <div className="space-y-4">
                 {gattMap[dev.mac].map((srv) => (
                   <div key={srv.uuid} className="border p-3 rounded">
-                    <p className="font-semibold">🔹 {getLabel(srv.uuid)}</p>
+                    <p className="font-semibold">
+                      🔹 {srv.name?.trim() ? srv.name : getLabel(srv.uuid)}
+                    </p>
                     <p className="text-sm text-muted-foreground">UUID: {srv.uuid}</p>
 
                     {srv.characteristics.map((char) => {
@@ -274,7 +299,9 @@ export const BLEConfig: React.FC = () => {
                               checked={checked}
                               onChange={() => toggleSelectChar(cid)}
                             />
-                            <span className="text-sm font-medium">{char.uuid}</span>
+                            <span className="text-sm font-medium">
+                              {char.name ? `${char.name} (${char.uuid})` : char.uuid}
+                            </span>
                           </div>
 
                           <div className="flex gap-2 flex-wrap items-center">
@@ -304,7 +331,7 @@ export const BLEConfig: React.FC = () => {
                               <Button
                                 size="sm"
                                 variant={notificationMap[cid] ? "primary" : "secondary"}
-                                onClick={() => handleNotifyToggle(dev.mac, char.uuid)}
+                                onClick={() => handleNotifyToggle(dev.mac,char.path, char.uuid)}
                               >
                                 {notificationMap[cid] ? "Disable Notify" : "Enable Notify"}
                               </Button>
