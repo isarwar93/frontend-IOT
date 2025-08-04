@@ -6,6 +6,7 @@ import { ChatView } from "../tabs-dashboard/ChatView";
 import { AnalysisView } from "../tabs-dashboard/AnalysisView";
 import { LineChart, Flame, MessageSquare } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { GraphEngine } from "@/components/GraphEngine";
 
 interface Props {
     nickname: string;
@@ -13,9 +14,11 @@ interface Props {
 }
 
 const tabs = [
-    { key: "graph", label: "Graph", icon: LineChart },
+    { key: "graphEngine", label: "GraphEngine", icon: LineChart },
     { key: "video", label: "Video", icon: Flame },
     { key: "analysis", label: "Analysis", icon: Flame },
+
+    { key: "graph", label: "Graph", icon: LineChart },
     { key: "chat", label: "Chat", icon: MessageSquare },
 ];
 
@@ -33,6 +36,8 @@ export const DashboardPage: React.FC<Props> = ({ nickname, username }) => {
         switch (activeTab) {
             case "analysis":
               return <AnalysisView />;
+            case "graphEngine":
+              return <GraphEngine />;
             case "video":
               return <VideoView />;
             case "chat":

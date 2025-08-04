@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-type Tab = 'graph' | 'video' |'analysis'|'chat';
+type Tab = 'graphEngine' |'video' |'analysis'|'graph' | 'chat';
 type Section = 'dashboard' | 'settings' | 'config';
 type ProtocolTab = 'ble' | 'mqtt' | 'usb';
 

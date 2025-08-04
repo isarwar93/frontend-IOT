@@ -2,8 +2,27 @@ import React, { useState } from "react";
 import axios from "axios";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { useGraphStore } from "@/store/useGraphStore";
+import { useBLEStore } from "@/store/useBLEStore";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
+function handleBLE(uuid: string, payload: string) {
+  const json = JSON.parse(payload);
+  const configs = useGraphStore.getState().configs.filter(c => c.sourceUUID === uuid);
+
+  for (const cfg of configs) {
+    const point: Record<string, number> = {};
+    for (const line of cfg.lines) {
+      const val = Array.isArray(json)
+        ? json[parseInt(line.byteIndex as string)]
+        : json[line.byteIndex];
+      if (typeof val === "number") point[line.label] = val;
+    }
+    useGraphStore.getState().pushData(cfg.id, point);
+  }
+}
+
 
 interface BLEDevice {
   mac: string;
@@ -36,21 +55,25 @@ const GATT_LABELS: Record<string, string> = {
 const getLabel = (uuid: string) => GATT_LABELS[uuid.toLowerCase()] || uuid;
 
 export const BLEConfig: React.FC = () => {
-  const [bleDevices, setBleDevices] = useState<BLEDevice[]>([]);
-  const [connectedDevices, setConnectedDevices] = useState<BLEDevice[]>([]);
-  const [gattMap, setGattMap] = useState<Record<string, GattService[]>>({});
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
-  const [connectionStatus, setConnectionStatus] = useState<Record<string, string>>({});
-  const [notificationMap, setNotificationMap] = useState<Record<string, boolean>>({});
-  const [writeValues, setWriteValues] = useState<Record<string, string>>({});
-  const [notificationValues, setNotificationValues] = useState<Record<string, string>>({});
-  const [selectedChars, setSelectedChars] = useState<string[]>([]);
-  const [isScanning, setIsScanning] = useState(false);
-  const [showScanned, setShowScanned] = useState(true);
-  const [showConnected, setShowConnected] = useState(false);
+  const {
+    bleDevices, setBleDevices,
+    connectedDevices, setConnectedDevices,
+    gattMap, setGattMap,
+    expandedDevices, setExpandedDevices,
+    connectionStatus, setConnectionStatus,
+    notifications, setNotifications,
+    notifValues, setNotifValues,
+    writeValues, setWriteValues,
+    selectedChars, setSelectedChars,
+    isScanning, setIsScanning,
+    showScanned, setShowScanned,
+    showConnected, setShowConnected,
+  } = useBLEStore();
+
+
 
   const toggleExpand = (mac: string) =>
-    setExpanded((prev) => ({ ...prev, [mac]: !prev[mac] }));
+     setExpandedDevices({ ...expandedDevices, [mac]: !expandedDevices[mac] });
 
   const handleScan = async () => {
     setIsScanning(true);
@@ -70,12 +93,12 @@ export const BLEConfig: React.FC = () => {
   };
 
   const handleConnect = async (device: BLEDevice) => {
-    setConnectionStatus((prev) => ({ ...prev, [device.mac]: "Connecting..." }));
+    setConnectionStatus({ ...connectionStatus, [device.mac]: "Connecting..." });
     try {
       const res = await axios.post(`${BASE_URL}/api/ble/connect`, device);
       if (res.data) {
-        setConnectedDevices((prev) => [...prev, device]);
-        setConnectionStatus((prev) => ({ ...prev, [device.mac]: "Connected" }));
+        setConnectedDevices([...connectedDevices, device]);
+        setConnectionStatus({ ...connectionStatus, [device.mac]: "Connected" });
         setShowConnected(true);
 
         console.log("Connected to device:", device.mac);
@@ -89,10 +112,10 @@ export const BLEConfig: React.FC = () => {
             ? srv.characteristics.filter((c) => c && c.uuid && Array.isArray(c.properties))
             : [],
         }));
-        setGattMap((prev) => ({ ...prev, [device.mac]: cleaned }));
+        setGattMap({ ...gattMap, [device.mac]: cleaned });
       }
     } catch {
-      setConnectionStatus((prev) => ({ ...prev, [device.mac]: "Failed" }));
+      setConnectionStatus({ ...connectionStatus, [device.mac]: "Failed" });
     }
   };
 
@@ -102,17 +125,15 @@ export const BLEConfig: React.FC = () => {
         headers: { "Content-Type": "application/json" },
       });
 
-      setConnectedDevices((prev) => prev.filter((d) => d.mac !== mac));
-      setGattMap((prev) => {
-        const { [mac]: _, ...rest } = prev;
-        return rest;
-      });
+      setConnectedDevices(connectedDevices.filter((d) => d.mac !== mac));
+      const { [mac]: _, ...rest } = gattMap;
+      setGattMap(rest);
       setSelectedChars([]);
-      setConnectionStatus((prev) => ({ ...prev, [mac]: "🔌 Disconnected" }));
+      setConnectionStatus({ ...connectionStatus, [mac]: "🔌 Disconnected" });
       console.log("Disconnected from:", mac);
     } catch (error) {
       console.error("Disconnection failed:", error);
-      setConnectionStatus((prev) => ({ ...prev, [mac]: "❌ Disconnection failed" }));
+      setConnectionStatus({ ...connectionStatus, [mac]: "❌ Disconnection failed" });
     }
   };
 
@@ -120,8 +141,8 @@ export const BLEConfig: React.FC = () => {
   const handleNotifyToggle = async (mac: string, path: string, uuid: string) => {
     const id = `${mac}-${path}-${uuid}`;
     console.log("Toggling notify for:", id);
-    const next = !notificationMap[id];
-    setNotificationMap((prev) => ({ ...prev, [id]: next }));
+    const next = !notifications[id];
+     setNotifications({ ...notifications, [id]: next });
 
     try {
       await axios.post(`${BASE_URL}/api/ble/notify`, {
@@ -132,19 +153,17 @@ export const BLEConfig: React.FC = () => {
       });
 
       if (next) {
-        // Fake notify stream (replace with real WebSocket later)
         const interval = setInterval(() => {
-          setNotificationValues((prev) => ({
-            ...prev,
+          setNotifValues({
+            ...notifValues,
             [id]: "🟢 Value at " + new Date().toLocaleTimeString(),
-          }));
+          });
         }, 1000);
-        // Optional: store `interval` to clear later
       } else {
-        setNotificationValues((prev) => ({
-          ...prev,
-          [id]: "",
-        }));
+        setNotifValues({
+        ...notifValues,
+        [id]: "",
+      });
       }
     } catch (e) {
       console.error("Notify toggle failed:", e);
@@ -174,12 +193,14 @@ export const BLEConfig: React.FC = () => {
   };
 
   const handleWriteInputChange = (mac: string, uuid: string, value: string) => {
-    setWriteValues((prev) => ({ ...prev, [`${mac}-${uuid}`]: value }));
+     setWriteValues({ ...writeValues, [`${mac}-${uuid}`]: value });
   };
 
   const toggleSelectChar = (cid: string) => {
-    setSelectedChars((prev) =>
-      prev.includes(cid) ? prev.filter((id) => id !== cid) : [...prev, cid]
+    setSelectedChars(
+      selectedChars.includes(cid)
+        ? selectedChars.filter((id) => id !== cid)
+        : [...selectedChars, cid]
     );
   };
 
@@ -200,7 +221,7 @@ export const BLEConfig: React.FC = () => {
             {isScanning ? "🔄 Scanning..." : "🔍 Scan BLE Devices"}
           </Button>
           {bleDevices.length > 0 && (
-            <Button variant="secondary" onClick={() => setShowScanned((s) => !s)}>
+            <Button variant="secondary" onClick={() => setShowScanned(!showScanned)}>
               {showScanned ? "🙈 Hide Scanned" : "📡 Show Scanned"}
             </Button>
           )}
@@ -250,7 +271,7 @@ export const BLEConfig: React.FC = () => {
             <Button variant="outline" onClick={enableSelectedNotify}>
               ✅ Enable Selected Notifications
             </Button>
-            <Button variant="secondary" onClick={() => setShowConnected((s) => !s)}>
+            <Button variant="secondary" onClick={() => setShowConnected(!showConnected)}>
               {showConnected ? "🙈 Hide Connected" : "🧩 Show Connected"}
             </Button>
           </div>
@@ -269,7 +290,7 @@ export const BLEConfig: React.FC = () => {
               </div>
               <div className="flex gap-2">
                 <Button size="sm" onClick={() => toggleExpand(dev.mac)}>
-                  {expanded[dev.mac] ? "Hide GATT" : "Show GATT"}
+                  {expandedDevices[dev.mac] ? "Hide GATT" : "Show GATT"}
                 </Button>
                 <Button variant="danger" size="sm" onClick={() => handleDisconnect(dev.mac)}>
                   🔌 Disconnect
@@ -277,7 +298,7 @@ export const BLEConfig: React.FC = () => {
               </div>
             </div>
 
-            {expanded[dev.mac] && Array.isArray(gattMap[dev.mac]) && (
+            {expandedDevices[dev.mac] && Array.isArray(gattMap[dev.mac]) && (
               
               <div className="space-y-4">
                 {gattMap[dev.mac].map((srv) => (
@@ -330,17 +351,17 @@ export const BLEConfig: React.FC = () => {
                             {char.properties.includes("notify") && (
                               <Button
                                 size="sm"
-                                variant={notificationMap[cid] ? "primary" : "secondary"}
+                                variant={notifications[cid] ? "primary" : "secondary"}
                                 onClick={() => handleNotifyToggle(dev.mac,char.path, char.uuid)}
                               >
-                                {notificationMap[cid] ? "Disable Notify" : "Enable Notify"}
+                                {notifications[cid] ? "Disable Notify" : "Enable Notify"}
                               </Button>
                             )}
                           </div>
 
-                          {notificationValues[cid] && (
+                          {notifValues[cid] && (
                             <div className="text-sm text-green-600 pt-2">
-                              🔔 {notificationValues[cid]}
+                              🔔 {notifValues[cid]}
                             </div>
                           )}
 

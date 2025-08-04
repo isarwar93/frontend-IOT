@@ -18,6 +18,7 @@ export const Sidebar: React.FC = () => {
     { name: "Sensor Config", icon: "🔌", path: "/sensor-config" },
     { name: "Layout Config", icon: "🧱", path: "/layout-config" },
     { name: "Protocol Config", icon: "📡", path: "/protocol-config" },
+    { name: "Graph Config", icon: "📊", path: "/graph-config" }, 
     { name: "General Config", icon: "⚙️", path: "/configuration" },
     { name: "Settings", icon: "🧩", path: "/settings" },
   ];

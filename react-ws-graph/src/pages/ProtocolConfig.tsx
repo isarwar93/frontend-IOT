@@ -2,6 +2,7 @@ import React from "react";
 import { useUIStore } from "../store/useUIStore";
 import { Bluetooth, Wifi, Usb } from "lucide-react";
 import { BLEConfig } from "../tabs-protocol-config/BleConfig";
+// import { BLEConfig } from "../BleConfig";
 import { MQTTConfig } from "../tabs-protocol-config/MqttConfig";
 import { USBConfig } from "../tabs-protocol-config/UsbConfig";
 
