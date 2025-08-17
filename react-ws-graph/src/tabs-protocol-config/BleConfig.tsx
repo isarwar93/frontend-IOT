@@ -137,7 +137,6 @@ export const BLEConfig: React.FC = () => {
     }
   };
 
-
   const handleNotifyToggle = async (mac: string, path: string, uuid: string) => {
     const id = `${mac}-${path}-${uuid}`;
     console.log("Toggling notify for:", id);
@@ -145,14 +144,22 @@ export const BLEConfig: React.FC = () => {
      setNotifications({ ...notifications, [id]: next });
 
     try {
-      await axios.post(`${BASE_URL}/api/ble/notify`, {
+      const res = await axios.post(`${BASE_URL}/api/ble/notify`, {
         mac,
         path,
         uuid,
         enable: next,
       });
+ 
+      console.log("/api/ble/notify API response:", res.data);
 
       if (next) {
+        setSelectedChars(
+          selectedChars.includes(path)
+            ? selectedChars
+            : [...selectedChars, path]
+        );
+        console.log("Notifications enabled for:", id);
         const interval = setInterval(() => {
           setNotifValues({
             ...notifValues,

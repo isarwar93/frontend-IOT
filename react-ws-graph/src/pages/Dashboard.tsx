@@ -1,12 +1,13 @@
 import React from "react";
 import { useUIStore } from "../store/useUIStore";
+import { GraphEngine } from "../tabs-dashboard/GraphEngine";
 import { GraphView } from "../tabs-dashboard/GraphView";
 import { VideoView } from "../tabs-dashboard/VideoView";
 import { ChatView } from "../tabs-dashboard/ChatView";
 import { AnalysisView } from "../tabs-dashboard/AnalysisView";
-import { LineChart, Flame, MessageSquare } from "lucide-react";
+import { LineChart, Flame, MessageSquare, BarChart, Icon, GitGraphIcon, GlassesIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { GraphEngine } from "@/components/GraphEngine";
+import { Graph } from "@/components/Graph";
 
 interface Props {
     nickname: string;
@@ -14,7 +15,7 @@ interface Props {
 }
 
 const tabs = [
-    { key: "graphEngine", label: "GraphEngine", icon: LineChart },
+    { key: "graphEngine", label: "GraphEngine", icon: GlassesIcon },
     { key: "video", label: "Video", icon: Flame },
     { key: "analysis", label: "Analysis", icon: Flame },
 

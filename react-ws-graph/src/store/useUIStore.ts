@@ -80,7 +80,8 @@ interface UIState {
   protocolTab: ProtocolTab;
   setProtocolTab: (tab: ProtocolTab) => void;
 
-
+  mac: string;
+  setMacname: (name: string) => void;
   
 }
 
@@ -158,5 +159,8 @@ export const useUIStore = create<UIState>((set) => ({
 
   protocolTab: 'ble',
   setProtocolTab: (tab: ProtocolTab) => set({ protocolTab: tab }),
+
+  mac: "",
+  setMacname: (name) => set({ mac: name }),
 
 }));
