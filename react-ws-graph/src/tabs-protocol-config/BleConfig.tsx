@@ -7,21 +7,21 @@ import { useBLEStore } from "@/store/useBLEStore";
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
-function handleBLE(uuid: string, payload: string) {
-  const json = JSON.parse(payload);
-  const configs = useGraphStore.getState().configs.filter(c => c.sourceUUID === uuid);
+// function handleBLE(uuid: string, payload: string) {
+//   const json = JSON.parse(payload);
+//   const configs = useGraphStore.getState().configs.filter(c => c.sourceUUID === uuid);
 
-  for (const cfg of configs) {
-    const point: Record<string, number> = {};
-    for (const line of cfg.lines) {
-      const val = Array.isArray(json)
-        ? json[parseInt(line.byteIndex as string)]
-        : json[line.byteIndex];
-      if (typeof val === "number") point[line.label] = val;
-    }
-    useGraphStore.getState().pushData(cfg.id, point);
-  }
-}
+//   for (const cfg of configs) {
+//     const point: Record<string, number> = {};
+//     for (const line of cfg.lines) {
+//       const val = Array.isArray(json)
+//         ? json[parseInt(line.byteIndex as string)]
+//         : json[line.byteIndex];
+//       if (typeof val === "number") point[line.label] = val;
+//     }
+//     useGraphStore.getState().pushData(cfg.id, point);
+//   }
+// }
 
 
 interface BLEDevice {
@@ -63,6 +63,7 @@ export const BLEConfig: React.FC = () => {
     connectionStatus, setConnectionStatus,
     notifications, setNotifications,
     notifValues, setNotifValues,
+    charValues, setCharValues,
     writeValues, setWriteValues,
     selectedChars, setSelectedChars,
     isScanning, setIsScanning,
@@ -137,11 +138,13 @@ export const BLEConfig: React.FC = () => {
     }
   };
 
-  const handleNotifyToggle = async (mac: string, path: string, uuid: string) => {
+  const handleNotifyToggle = async (mac: string, 
+                                    path: string,
+                                    uuid: string,
+                                    charName: string) => {
     const id = `${mac}-${path}-${uuid}`;
     console.log("Toggling notify for:", id);
     const next = !notifications[id];
-     setNotifications({ ...notifications, [id]: next });
 
     try {
       const res = await axios.post(`${BASE_URL}/api/ble/notify`, {
@@ -150,14 +153,37 @@ export const BLEConfig: React.FC = () => {
         uuid,
         enable: next,
       });
- 
+         // Parse the backend response
+      let message = "";
+      let status = "";
+      let numValues = 0;
+      if (Array.isArray(res.data) && res.data[0]?.stringValue) {
+        const parsed = JSON.parse(res.data[0].stringValue);
+        message = parsed.message?.toLowerCase();
+        status = parsed.status;
+        numValues = parsed.number_of_values || 0;
+      }
+       // Save characteristic name and number of values
+      setCharValues({
+        ...charValues,
+        [id]: { name: charName, numberOfValues: numValues },
+      });
+      console.log("check charValues:", charValues);
+
+      // Update notifications state based on parsed message
+      if (status === "success" && message.includes("enabled")) {
+        setNotifications({ ...notifications, [id]: true });
+      } else if (status === "success" && message.includes("disabled")) {
+        setNotifications({ ...notifications, [id]: false });
+      }
+
       console.log("/api/ble/notify API response:", res.data);
 
-      if (next) {
+      if (status === "success" && message.includes("enabled")) {
         setSelectedChars(
-          selectedChars.includes(path)
+          selectedChars.includes(id)
             ? selectedChars
-            : [...selectedChars, path]
+            : [...selectedChars, id]
         );
         console.log("Notifications enabled for:", id);
         const interval = setInterval(() => {
@@ -166,11 +192,11 @@ export const BLEConfig: React.FC = () => {
             [id]: "🟢 Value at " + new Date().toLocaleTimeString(),
           });
         }, 1000);
-      } else {
+        } else if (status === "success" && message.includes("disabled")) {
         setNotifValues({
-        ...notifValues,
-        [id]: "",
-      });
+          ...notifValues,
+          [id]: "",
+        });
       }
     } catch (e) {
       console.error("Notify toggle failed:", e);
@@ -214,7 +240,7 @@ export const BLEConfig: React.FC = () => {
   const enableSelectedNotify = async () => {
     for (const cid of selectedChars) {
       const [mac, path, uuid] = cid.split("-");
-      await handleNotifyToggle(mac, path, uuid);
+      await handleNotifyToggle(mac, path, uuid, charValues[cid]?.name || uuid);
     }
   };
 
@@ -316,7 +342,7 @@ export const BLEConfig: React.FC = () => {
                     <p className="text-sm text-muted-foreground">UUID: {srv.uuid}</p>
 
                     {srv.characteristics.map((char) => {
-                      const cid = `${dev.mac}-${char.uuid}`;
+                      const cid = `${dev.mac}-${char.path}-${char.uuid}`;
                       const checked = selectedChars.includes(cid);
 
                       return (
@@ -328,7 +354,7 @@ export const BLEConfig: React.FC = () => {
                               onChange={() => toggleSelectChar(cid)}
                             />
                             <span className="text-sm font-medium">
-                              {char.name ? `${char.name} (${char.uuid})` : char.uuid}
+                              {char.name ? `${dev.mac}-${char.path}-${char.uuid}` : char.uuid}
                             </span>
                           </div>
 
@@ -358,8 +384,8 @@ export const BLEConfig: React.FC = () => {
                             {char.properties.includes("notify") && (
                               <Button
                                 size="sm"
-                                variant={notifications[cid] ? "primary" : "secondary"}
-                                onClick={() => handleNotifyToggle(dev.mac,char.path, char.uuid)}
+                                variant={notifications[cid] ?  "secondary":"primary"}
+                                onClick={() => handleNotifyToggle(dev.mac,char.path, char.uuid,char.name)}
                               >
                                 {notifications[cid] ? "Disable Notify" : "Enable Notify"}
                               </Button>

@@ -29,6 +29,8 @@ interface BLEStore {
   connectionStatus: Record<string, string>;
   notifications: Record<string, boolean>;
   notifValues: Record<string, string>;
+  charValues: Record<string, { name: string; numberOfValues: number }>;
+
   writeValues: Record<string, string>;
   selectedChars: string[];
   isScanning: boolean;
@@ -43,6 +45,9 @@ interface BLEStore {
   setConnectionStatus: (status: Record<string, string>) => void;
   setNotifications: (map: Record<string, boolean>) => void;
   setNotifValues: (values: Record<string, string>) => void;
+  setCharValues: (values: Record<string, { name: string; numberOfValues: number }>) => void;
+
+
   setWriteValues: (values: Record<string, string>) => void;
   setSelectedChars: (ids: string[]) => void;
   setIsScanning: (v: boolean) => void;
@@ -58,6 +63,8 @@ export const useBLEStore = create<BLEStore>((set) => ({
   connectionStatus: {},
   notifications: {},
   notifValues: {},
+  charValues: {},
+ 
   writeValues: {},
   selectedChars: [],
   isScanning: false,
@@ -71,6 +78,7 @@ export const useBLEStore = create<BLEStore>((set) => ({
   setConnectionStatus: (status) => set({ connectionStatus: status }),
   setNotifications: (map) => set({ notifications: map }),
   setNotifValues: (v) => set({ notifValues: v }),
+  setCharValues: (values) => set({ charValues: values }),
   setWriteValues: (v) => set({ writeValues: v }),
   setSelectedChars: (ids) => set({ selectedChars: ids }),
   setIsScanning: (v) => set({ isScanning: v }),

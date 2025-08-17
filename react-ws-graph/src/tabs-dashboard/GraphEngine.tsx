@@ -1,463 +1,284 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+// src/components/GraphEngine.tsx
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip,
   CartesianGrid, Legend, ResponsiveContainer,
 } from "recharts";
-import { GraphData } from "../../types";
-import { useWebSockets } from "../websocket/graphWebSocket";
+import { useGraphStore } from "@/store/useGraphStore";
+import { useBLEStore } from "@/store/useBLEStore";
 import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
-import { Switch } from "@/components/ui/Switch";
-import { Slider } from "@/components/ui/Slider";
-import {
-  ChevronDown, ChevronUp, Settings, SlidersHorizontal,
-  RefreshCcw, Pause, Play, Download, Palette, Plug, PlugZap
-} from "lucide-react";
-import { useTheme } from "next-themes";
-import { useUIStore } from "@/store/useUIStore";
-import { useBLEStore } from "@/store/useBLEStore"; // <-- make sure this path matches your project
 
-// Small helper component: subscribes a single (mac, uuid) stream and forwards points up.
-function StreamSubscriber({
-  mac,
-  uuid,
-  paused,
-  onPoint,
-}: {
-  mac: string;
-  uuid: string;
-  paused: boolean;
-  onPoint: (uuid: string, d: GraphData) => void;
-}) {
-  const ws = useWebSockets({
-    mac,
-    uuid,
-    paused,
-    onGraphData: (d) => onPoint(uuid, d),
-    onConnect: () => console.log("Graph connected", uuid),
-    onDisconnect: () => console.log("Graph disconnected", uuid),
-  });
+// If you also have a UI store with user-picked MAC, you can import it too:
+// import { useUIStore } from "@/store/useUIStore";
 
-  useEffect(() => () => ws.disconnect?.(), [uuid, mac]);
+type WSKey = string; // `${mac}|${uuid}`
 
-  return null; // purely side-effect
-}
+const WS_BASE = import.meta.env.VITE_API_BASE_URL_WS ?? ""; // e.g. ws://192.168.0.32:8000
 
-// Recharts point where each key after "timestamp" is a uuid
-type MultiSeriesPoint = { timestamp: number } & Record<string, number>;
+// Robust parser: supports number, {t,v}, {timestamp:..}, array, or object payloads
+function parseFrame(
+  raw: string,
+  lines: { label: string; byteIndex: string | number }[]
+): { t: number; row: Record<string, number> } | null {
+  try {
+    const msg = JSON.parse(raw);
 
-export const GraphEngine = () => {
-  // ---------- Global UI store ----------
-  const macGlobal = useUIStore((s) => s.mac);
-  const bufferSize = useUIStore((s) => s.bufferSize);
-  const setBufferSize = useUIStore((s) => s.setBufferSize);
-  const useBar = useUIStore((s) => s.useBar);
-  const toggleUseBar = useUIStore((s) => s.toggleUseBar);
-  const fixedYAxis = useUIStore((s) => s.fixedYAxis);
-  const toggleFixedYAxis = useUIStore((s) => s.toggleFixedYAxis);
-  const minY = useUIStore((s) => s.minY);
-  const setMinY = useUIStore((s) => s.setMinY);
-  const maxY = useUIStore((s) => s.maxY);
-  const setMaxY = useUIStore((s) => s.setMaxY);
-  const graphWidth = useUIStore((s) => s.graphWidth);
-  const graphHeight = useUIStore((s) => s.graphHeight);
-  const color = useUIStore((s) => s.color);
-  const setColor = useUIStore((s) => s.setColor);
-  const showMin = useUIStore((s) => s.showMin);
-  const showMax = useUIStore((s) => s.showMax);
-  const showAvg = useUIStore((s) => s.showAvg);
-  const showPoints = useUIStore((s) => s.showPoints);
-  const showGrid = useUIStore((s) => s.showGrid);
+    // Timestamp
+    let t = Date.now();
+    if (typeof msg?.t === "number") t = msg.t;
+    else if (typeof msg?.t === "string") t = Date.parse(msg.t);
+    else if (typeof msg?.timestamp === "number") t = msg.timestamp;
+    else if (typeof msg?.timestamp === "string") t = Date.parse(msg.timestamp);
 
+    // Value mapping
+    const row: Record<string, number> = {};
 
-  // ---------- BLE store (drives what we can connect to) ----------
-  const bleMac = useBLEStore((s) => s.connectedDevices); // prefer BLE store; fallback to UI store
-  //   const selectedChars = useBLEStore((s) => s.selectedChars); // [{uuid, name?}, ...]
-  const mac = bleMac || macGlobal || ""; // final mac we’ll use
+    if (typeof msg === "number") {
+      // Single number -> first line
+      if (lines[0]) row[lines[0].label] = msg;
+      return { t, row };
+    }
 
-  //  const bleMac = useBLEStore((s) => s.connectedDevices as string | undefined);
-  const uiMac  = useUIStore((s) => s.mac as string | undefined);
-  // const deviceMac = bleMac || uiMac || "";  // final string for display
-  const deviceMac = bleMac.length > 0 ? bleMac[0].mac : uiMac || "";
-
-  // ---------- Local UI toggles ----------
-  const [showAxes, setShowAxes] = useState(false);
-  const [showDisplay, setShowDisplay] = useState(false);
-  const [showControls, setShowControls] = useState(false);
-  const [paused, setPaused] = useState(false);
-
-
-// Get it from the BLE store
-const bleSelectedChars = useBLEStore((s) => s.selectedChars); // string[]
-
-const initialChecked = useMemo(() => {
-  const map: Record<string, boolean> = {};
-  (bleSelectedChars || []).forEach((c) => {
-    console.log("Graph engine: bleSelectedChars", c);
-    const parts = c.split("-");
-    const uuid = parts[parts.length - 1];
-    map[uuid] = true;
-  });
-  return map;
-}, [bleSelectedChars]);
-
-const [checked, setChecked] = useState<Record<string, boolean>>(initialChecked);
-
-  // Which streams are actively connected
-  const [connectedUUIDs, setConnectedUUIDs] = useState<string[]>([]);
-
-  // Data buffer: merged multi-series points keyed by timestamp
-  const [data, setData] = useState<MultiSeriesPoint[]>([]);
-  const bufferSizeRef = useRef(bufferSize);
-  useEffect(() => { bufferSizeRef.current = bufferSize; }, [bufferSize]);
-
-  // Stats (across all visible series)
-  const stats = useRef({ min: Infinity, max: -Infinity, sum: 0, count: 0 });
-  const [average, setAverage] = useState(0);
-
-  const { theme } = useTheme();
-
-  // Handle incoming point for a specific uuid; merge into multi-series dataset
-  const onPoint = (uuid: string, point: GraphData) => {
-    if (paused) return;
-
-    setData((prev) => {
-      // Try to merge this point by timestamp
-      let merged = [...prev];
-      const last = merged[merged.length - 1];
-
-      const ts =
-    typeof point.timestamp === "number"
-      ? point.timestamp
-      : (Date.parse(point.timestamp as string) || Number(point.timestamp) || 0);
-
-    if (last && last.timestamp === ts) {
-    last[uuid] = point.value;
-  } else {
-    merged.push({ timestamp: ts, [uuid]: point.value });
-  }
-
-      // Trim by buffer
-      const trimmed = merged.slice(-bufferSizeRef.current);
-
-      // Recompute stats across all present values
-      let min = Infinity, max = -Infinity, sum = 0, count = 0;
-      for (const row of trimmed) {
-        for (const key of connectedUUIDs) {
-          const v = row[key];
-          if (typeof v === "number" && !Number.isNaN(v)) {
-            if (v < min) min = v;
-            if (v > max) max = v;
-            sum += v;
-            count++;
-          }
+    if (Array.isArray(msg)) {
+      // Array -> numeric indices
+      for (const ln of lines) {
+        const idx = typeof ln.byteIndex === "string" ? parseInt(ln.byteIndex) : ln.byteIndex;
+        if (Number.isFinite(idx) && typeof msg[idx as number] === "number") {
+          row[ln.label] = msg[idx as number] as number;
         }
       }
-      stats.current = { min, max, sum, count };
-      setAverage(count ? sum / count : 0);
+      return { t, row };
+    }
 
-      return trimmed;
-    });
-  };
+    if (typeof msg === "object" && msg !== null) {
+      // Object -> string keys or classic {t, v}
+      if (typeof (msg as any).v === "number" && lines[0]) {
+        row[lines[0].label] = (msg as any).v;
+        return { t, row };
+      }
+      for (const ln of lines) {
+        if (typeof ln.byteIndex === "string") {
+          const v = (msg as any)[ln.byteIndex];
+          if (typeof v === "number") row[ln.label] = v;
+        } else if (typeof ln.byteIndex === "number") {
+          const v = (msg as any)[String(ln.byteIndex)];
+          if (typeof v === "number") row[ln.label] = v;
+        }
+      }
+      return { t, row };
+    }
 
-  // UI handlers
-  const handleTick = (uuid: string) =>
-    setChecked((m) => ({ ...m, [uuid]: !m[uuid] }));
+    return null;
+  } catch {
+    return null;
+  }
+}
 
-  const handleConnect = () => {
-    const uuids = (bleSelectedChars || [])
-      .map((c) => {
-        const parts = c.split("-");
-        return parts[parts.length - 1]; // last part is uuid
-      })
-      .filter((u) => checked[u]);
+export const GraphEngine: React.FC = () => {
+  const {
+    configs,
+    data,
+    pushData,
+    axis,
+    display,
+    numGraphs,
+    bufferSize,
+  } = useGraphStore();
 
-    setConnectedUUIDs(uuids);
-  };
+  const { connectedDevices } = useBLEStore();
+  // Optional fallback from another store:
+  // const uiMac = useUIStore((s) => s.mac as string | undefined);
 
-  const handleDisconnectAll = () => {
-    setConnectedUUIDs([]);
-  };
-
-  const exportCSV = () => {
-    // Flatten: one column per connected uuid
-    const headers = ["timestamp", ...connectedUUIDs];
-    const rows = data.map((row) =>
-      [row.timestamp, ...connectedUUIDs.map((u) => (row[u] ?? ""))].join(",")
-    );
-    const csv = [headers.join(","), ...rows].join("\n");
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `graph-${mac || "no-mac"}.csv`;
-    link.click();
-  };
-
-  const handleBufferSizeChange = (val: number) => {
-    const clamped = Math.max(10, Math.min(500, val));
-    setBufferSize(clamped);
-  };
-
-  // Colors per series (fallback palette if user only has a single color in store)
-  const palette = useMemo(
-    () => [
-      color,
-      "#22c55e",
-      "#f59e0b",
-      "#ef4444",
-      "#8b5cf6",
-      "#06b6d4",
-      "#e11d48",
-      "#10b981",
-    ],
-    [color]
+  const deviceMac = useMemo(
+    () => (connectedDevices?.[0]?.mac /* ?? uiMac */) || "",
+    [connectedDevices]
   );
 
-  // Derived – are we connected?
-  const isConnected = connectedUUIDs.length > 0 && !!mac;
+  // --- WS management (one per (mac, uuid) used in configs) ---
+  const socketsRef = useRef<Record<WSKey, WebSocket>>({});
+  const [isConnected, setIsConnected] = useState(false);
 
-  const dropdownBox = "relative";
+  const uniqueUUIDs = useMemo(() => {
+    const s = new Set<string>();
+    for (const cfg of configs) s.add(cfg.sourceUUID);
+    return Array.from(s);
+  }, [configs]);
 
+  const connectAll = () => {
+    if (!deviceMac) return;
+    const created: Record<WSKey, WebSocket> = { ...socketsRef.current };
+
+    for (const uuid of uniqueUUIDs) {
+      const key: WSKey = `${deviceMac}|${uuid}`;
+      if (created[key] && created[key].readyState === WebSocket.OPEN) continue;
+      const safeMac = deviceMac.replace(/:/g, "_");
+      const url = `${WS_BASE}/ws/ble/graph/mac=${encodeURIComponent(safeMac)}/uuid=${encodeURIComponent(uuid)}`;
+      console.log("Connecting to WS:", url);
+      const ws = new WebSocket(url);
+
+      ws.onopen = () => {
+        console.log("WS open", key);
+      };
+
+      ws.onmessage = (ev) => {
+        console.debug("WS message", key, ev.data);
+        // Fan-out the payload to all configs that use this uuid
+        const relatedConfigs = configs.filter((c) => c.sourceUUID === uuid);
+        for (const cfg of relatedConfigs) {
+          const parsed = parseFrame(ev.data, cfg.lines);
+          if (!parsed) continue;
+          // Build row exactly as useGraphStore expects (timestamp auto-added by pushData)
+          pushData(cfg.id, parsed.row);
+        }
+      };
+
+      ws.onerror = () => {
+        // console.warn("WS error", key);
+      };
+
+      ws.onclose = () => {
+        // console.log("WS close", key);
+        delete created[key];
+        socketsRef.current = { ...created };
+        // Update connection flag
+        const anyOpen = Object.values(created).some((x) => x.readyState === WebSocket.OPEN);
+        setIsConnected(anyOpen);
+      };
+
+      created[key] = ws;
+    }
+
+    socketsRef.current = created;
+    setIsConnected(true);
+  };
+
+  const disconnectAll = () => {
+    const cur = socketsRef.current;
+    Object.values(cur).forEach((ws) => {
+      try { ws.close(); } catch {}
+    });
+    socketsRef.current = {};
+    setIsConnected(false);
+  };
+
+  useEffect(() => {
+    // Cleanup on unmount
+    return () => {
+      disconnectAll();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // --- Layout helpers ---
+  const gridColsClass = useMemo(() => {
+    const cols = Math.max(1, Math.min(4, numGraphs || configs.length || 1));
+    return `grid grid-cols-1 md:grid-cols-${cols} gap-4`;
+  }, [numGraphs, configs.length]);
+
+  // --- Axis helpers ---
+  const yDomain: [number | "auto", number | "auto"] = axis.fixed
+    ? [axis.min, axis.max]
+    : ["auto", "auto"];
+
+  // --- Render ---
   return (
     <div className="space-y-4">
-      {/* Connection gate */}
-      <div className="rounded-md border p-3">
-        <div className="flex items-center justify-between">
+      {/* Connection controls */}
+      <div className="flex items-center justify-between rounded-md border p-3">
+        <div className="text-sm">
           <div className="font-medium">
-            Device MAC:&nbsp;
-           <span className="text-muted-foreground">
-            {Array.isArray(mac)
-                ? mac.map(d => d.name || d.mac).join(", ")
-                : mac || "— (no MAC in store)"}
-            </span>
+            Device MAC: <span className="text-muted-foreground">{deviceMac || "— (no device)"}</span>
           </div>
-          <div className="flex gap-2">
-            <Button
-              onClick={handleConnect}
-              disabled={!mac || (bleSelectedChars?.length ?? 0) === 0}
-              className="flex items-center gap-2"
-            >
-              <PlugZap size={16} />
-              Connect
-            </Button>
-            <Button
-              onClick={handleDisconnectAll}
-              variant="outline"
-              disabled={!isConnected}
-              className="flex items-center gap-2"
-            >
-              <Plug size={16} />
-              Disconnect
-            </Button>
+          <div className="text-muted-foreground">
+            Streams: {uniqueUUIDs.length} | Buffer/graph: {bufferSize}
           </div>
         </div>
+        <div className="flex gap-2">
+          <Button
+            onClick={connectAll}
+            disabled={!deviceMac || uniqueUUIDs.length === 0 || isConnected}
+          >
+            Connect
+          </Button>
+          <Button variant="outline" onClick={disconnectAll} disabled={!isConnected}>
+            Disconnect
+          </Button>
+        </div>
+      </div>
 
-        {/* Checklist of selected characteristics from store */}
-        <div className="mt-3">
-          {(bleSelectedChars?.length ?? 0) > 0 ? (
-            <ul className="space-y-2">
-              {bleSelectedChars!.map((c, idx) => {
-                const parts = c.split("-");
-                const uuid = parts[parts.length - 1];
-                return (
-                    <li key={uuid} className="flex items-center justify-between rounded-md border px-3 py-2">
-                    <div className="flex items-center gap-3">
-                        <input
-                        type="checkbox"
-                        checked={!!checked[uuid]}
-                        onChange={() => handleTick(uuid)}
-                        className="h-4 w-4"
+      {/* Charts */}
+      <div className={gridColsClass}>
+        {configs.map((cfg) => {
+          const rows = data[cfg.id] ?? [];
+          const seriesLabels = cfg.lines.map((l) => l.label);
+
+          return (
+            <div key={cfg.id} className="rounded-2xl border p-3 shadow-sm bg-background">
+              <div className="mb-2">
+                <div className="font-semibold">{cfg.title}</div>
+                <div className="text-xs text-muted-foreground">UUID: {cfg.sourceUUID}</div>
+              </div>
+
+              <div style={{ height: display.height }}>
+                <ResponsiveContainer width={`${display.widthPct}%`} height="100%">
+                  {display.useBar ? (
+                    <BarChart data={rows}>
+                      {display.showGrid && <CartesianGrid strokeDasharray="3 3" />}
+                      <XAxis
+                        dataKey="timestamp"
+                        tickFormatter={(v) => new Date(Number(v)).toLocaleTimeString()}
+                      />
+                      <YAxis domain={yDomain} tickCount={axis.tickCount ?? 5} />
+                      <Tooltip
+                        labelFormatter={(v) => new Date(Number(v)).toLocaleTimeString()}
+                      />
+                      {display.showLegend && <Legend />}
+                      {seriesLabels.map((lbl, i) => (
+                        <Bar
+                          key={lbl}
+                          dataKey={lbl}
+                          isAnimationActive={false}
+                          fill={i === 0 ? display.primaryColor : undefined}
                         />
-                        <div className="flex flex-col">
-                        <span className="font-medium">
-                            Characteristic — <span className="text-muted-foreground">{uuid}</span>
-                        </span>
-                        </div>
-                    </div>
-                    </li>
-                );
-                })}
-            </ul>
-          ) : (
-            <div className="text-sm text-muted-foreground">
-              No selected characteristics found in <code>useBLEStore</code>.
-              Choose characteristics first in your BLE tab.
+                      ))}
+                    </BarChart>
+                  ) : (
+                    <LineChart data={rows}>
+                      {display.showGrid && <CartesianGrid strokeDasharray="3 3" />}
+                      <XAxis
+                        dataKey="timestamp"
+                        tickFormatter={(v) => new Date(Number(v)).toLocaleTimeString()}
+                      />
+                      <YAxis domain={yDomain} tickCount={axis.tickCount ?? 5} />
+                      <Tooltip
+                        labelFormatter={(v) => new Date(Number(v)).toLocaleTimeString()}
+                      />
+                      {display.showLegend && <Legend />}
+                      {seriesLabels.map((lbl, i) => (
+                        <Line
+                          key={lbl}
+                          dataKey={lbl}
+                          dot={false}
+                          isAnimationActive={false}
+                          strokeWidth={2}
+                          stroke={i === 0 ? display.primaryColor : undefined}
+                          type={display.smooth ? "monotone" : "linear"}
+                        />
+                      ))}
+                    </LineChart>
+                  )}
+                </ResponsiveContainer>
+              </div>
             </div>
-          )}
-        </div>
+          );
+        })}
       </div>
-
-      {/* Controls */}
-      <div className="flex flex-wrap gap-4 items-start">
-        {/* Axis Settings */}
-        <div className={dropdownBox}>
-          <button
-            onClick={() => setShowAxes(!showAxes)}
-            className="flex items-center gap-2 px-4 py-2 rounded-md border border-border bg-muted hover:bg-accent font-medium w-64 justify-between text-foreground"
-          >
-            <span className="flex items-center gap-2">
-              <SlidersHorizontal size={16} /> Axis Settings
-            </span>
-            {showAxes ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-          </button>
-          {showAxes && (
-            <div className="mt-2 space-y-2">
-              <div className="flex items-center justify-between border rounded-md px-3 py-2 hover:bg-accent">
-                <label className="text-sm">Fixed Y-Axis</label>
-                <Switch checked={fixedYAxis} onCheckedChange={toggleFixedYAxis} />
-              </div>
-              <div className="flex flex-col gap-1 border rounded-md px-3 py-2 hover:bg-accent">
-                <label className="text-sm text-muted-foreground">Min Y: {minY}</label>
-                <Slider
-                  value={minY}
-                  onValueChange={(val) => {
-                    setMinY(val);
-                    if (val >= maxY) setMaxY(val + 1);
-                  }}
-                  min={-500}
-                  max={500}
-                  step={1}
-                  disabled={!fixedYAxis}
-                />
-              </div>
-              <div className="flex flex-col gap-1 border rounded-md px-3 py-2 hover:bg-accent">
-                <label className="text-sm text-muted-foreground">Max Y: {maxY}</label>
-                <Slider
-                  value={maxY}
-                  onValueChange={(val) => {
-                    setMaxY(val);
-                    if (val <= minY) setMinY(val - 1);
-                  }}
-                  min={-500}
-                  max={500}
-                  step={1}
-                  disabled={!fixedYAxis}
-                />
-              </div>
-              <div className="flex flex-col gap-1 border rounded-md px-3 py-2 hover:bg-accent">
-                <label className="text-sm text-muted-foreground">Buffer Size: {bufferSize}</label>
-                <Slider
-                  value={bufferSize}
-                  onValueChange={handleBufferSizeChange}
-                  min={10}
-                  max={500}
-                  step={1}
-                />
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Display Options */}
-        <div className={dropdownBox}>
-          <button
-            onClick={() => setShowDisplay(!showDisplay)}
-            className="flex items-center px-4 py-2 rounded-md border-border bg-muted hover:bg-accent font-medium w-64 justify-between text-foreground"
-          >
-            <span className="flex items-center gap-2">
-              <Palette size={16} /> Display Options
-            </span>
-            {showDisplay ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-          </button>
-          {showDisplay && (
-            <div className="mt-2 space-y-2">
-              <div className="flex items-center justify-between border rounded-md px-3 py-2 hover:bg-accent">
-                <label className="text-sm">Bar Chart</label>
-                <Switch checked={useBar} onCheckedChange={toggleUseBar} />
-              </div>
-              <div className="flex items-center justify-between border rounded-md px-3 py-2 hover:bg-accent">
-                <div className="flex items-center gap-2">
-                  <Palette size={16} />
-                  <label className="text-sm">Primary Color (first series)</label>
-                </div>
-                <Input
-                  type="color"
-                  value={color}
-                  onChange={(e) => setColor(e.target.value)}
-                  className="w-12 h-8 p-0 border-none rounded-full cursor-pointer"
-                  style={{ backgroundColor: color }}
-                />
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Graph Controls */}
-        <div className={dropdownBox}>
-          <button
-            onClick={() => setShowControls(!showControls)}
-            className="flex items-center px-4 py-2 rounded-md border-border bg-muted hover:bg-accent font-medium w-64 justify-between"
-          >
-            <span className="flex items-center gap-2">
-              <Settings size={16} /> Graph Controls
-            </span>
-            {showControls ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-          </button>
-          {showControls && (
-            <div className="mt-2 space-y-2">
-              <Button onClick={() => setPaused((prev) => !prev)} variant="outline" className="w-full flex justify-center gap-2" disabled={!isConnected}>
-                {paused ? <Play size={16} /> : <Pause size={16} />}
-                {paused ? "Resume" : "Pause"}
-              </Button>
-              <Button onClick={exportCSV} variant="outline" className="w-full flex justify-center gap-2" disabled={data.length === 0}>
-                <Download size={16} /> Export CSV
-              </Button>
-              <Button onClick={() => setBufferSize(100)} variant="outline" size="sm" className="w-full flex justify-center gap-2">
-                <RefreshCcw size={16} /> Reset Buffer
-              </Button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Small stats row */}
-      <div className="text-muted-foreground text-sm">
-        {showMin && Number.isFinite(stats.current.min) && <>Min: {stats.current.min.toFixed(2)} | </>}
-        {showMax && Number.isFinite(stats.current.max) && <>Max: {stats.current.max.toFixed(2)} | </>}
-        {showAvg && Number.isFinite(average) && <>Avg: {average.toFixed(2)} | </>}
-        {showPoints && <>Points: {data.length}</>}
-      </div>
-
-      {/* The chart */}
-      <ResponsiveContainer width={`${graphWidth}%`} height={graphHeight}>
-        {useBar ? (
-          <BarChart data={data}>
-            {showGrid && <CartesianGrid strokeDasharray="3 3" stroke={theme === "dark" ? "#444" : "#ccc"} />}
-            <XAxis dataKey="timestamp" interval={Math.floor(bufferSize / 10)} />
-            <YAxis domain={fixedYAxis ? [minY, maxY] : ["auto", "auto"]} />
-            <Tooltip />
-            <Legend />
-            {connectedUUIDs.map((u, i) => (
-              <Bar key={u} dataKey={u} fill={palette[i % palette.length]} />
-            ))}
-          </BarChart>
-        ) : (
-          <LineChart data={data}>
-            {showGrid && <CartesianGrid strokeDasharray="3 3" stroke={theme === "dark" ? "#444" : "#ccc"} />}
-            <XAxis dataKey="timestamp" interval={Math.floor(bufferSize / 10)} />
-            <YAxis domain={fixedYAxis ? [minY, maxY] : ["auto", "auto"]} />
-            <Tooltip />
-            <Legend />
-            {connectedUUIDs.map((u, i) => (
-              <Line
-                key={u}
-                dataKey={u}
-                stroke={palette[i % palette.length]}
-                strokeWidth={2}
-                dot={false}
-                isAnimationActive={false}
-              />
-            ))}
-          </LineChart>
-        )}
-      </ResponsiveContainer>
-
-      {/* Mount subscribers only when connected */}
-      {isConnected &&
-        connectedUUIDs.map((u) => (
-          <StreamSubscriber key={u} mac={deviceMac} uuid={u} paused={paused} onPoint={onPoint} />
-        ))}
     </div>
   );
 };
+
+// You can import either way:
+// import GraphEngine from "@/components/GraphEngine";
+// or
+// import { GraphEngine } from "@/components/GraphEngine";
+export default GraphEngine;
