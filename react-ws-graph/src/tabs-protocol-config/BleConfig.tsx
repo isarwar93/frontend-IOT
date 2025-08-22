@@ -103,8 +103,33 @@ export const BLEConfig: React.FC = () => {
         setShowConnected(true);
 
         console.log("Connected to device:", device.mac);
+        // Without this delay, the GATT services might not be ready immediately
+        // FIXME: (in backend) This is a workaround, ideally it should be available immediately
+
+        await new Promise((resolve) => setTimeout(resolve, 2000));
         const services = await axios.get(`${BASE_URL}/api/ble/services/${device.mac}`);
         console.log("Services:", services.data);
+        // if service array is empty, try reconnecting and then fetching services again
+        if (!Array.isArray(services.data) || services.data.length === 0) {
+          console.warn("No services found, retrying connection...");
+          // Wait for disconnection before retrying
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          await handleDisconnect(device.mac);
+          //wait for 1 second before retrying
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          const res = await axios.post(`${BASE_URL}/api/ble/connect`, device);
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+          const services = await axios.get(`${BASE_URL}/api/ble/services/${device.mac}`);
+          if (services.data.length > 0) {
+            console.log("Services found on retry:", services.data);
+          }
+          else {
+            console.warn("No services found even after retrying.");
+            handleDisconnect(device.mac);
+            return;
+          }
+        }
+        
         const cleaned = services.data.map((srv: GattService) => ({
           name: srv.name,
           path: srv.path,

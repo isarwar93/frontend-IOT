@@ -191,6 +191,23 @@ function CharConfigurator({
     });
   };
 
+  // NEW: assign all waveforms to a specific graph (and remove from others)
+  const selectAllFor = (g: number) => {
+    setAssignments(() => {
+      const cleaned: Record<number, number[]> = {};
+      // wipe everyone first (exclusivity)
+      for (let i = 1; i <= graphsCount; i++) cleaned[i] = [];
+      // then assign all 1..numberOfValues to the target graph
+      cleaned[g] = Array.from({ length: numberOfValues }, (_, i) => i + 1);
+      return cleaned;
+    });
+  };
+
+  // NEW: clear only this graph's selection
+  const clearFor = (g: number) => {
+    setAssignments((prev) => ({ ...prev, [g]: [] }));
+  };
+
   // is waveform w selected in any graph other than g?
   const usedElsewhere = (g: number, w: number) => {
     for (let i = 1; i <= graphsCount; i++) {
@@ -201,7 +218,6 @@ function CharConfigurator({
   };
 
   const clear = () => setAssignments({});
-
   const buildAndCreate = () => {
     const cfgs: {
       id: string;
@@ -277,11 +293,21 @@ function CharConfigurator({
         <div className="grid gap-4 sm:grid-cols-1 md:grid-cols-2">
           {Array.from({ length: graphsCount }, (_, i) => i + 1).map((g) => (
             <div key={g} className="border rounded p-3 bg-background">
-              <div className="flex items-center justify-between">
-                <h4 className="font-semibold">Graph {g}</h4>
-                <span className="text-xs text-muted-foreground">
-                  Selected: {(assignments[g] ?? []).length}
-                </span>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <h4 className="font-semibold">Graph {g}</h4>
+                  <span className="text-xs text-muted-foreground">
+                    Selected: {(assignments[g] ?? []).length}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button size="sm" variant="outline" onClick={() => selectAllFor(g)}>
+                    Select all
+                  </Button>
+                  <Button size="sm" variant="ghost" onClick={() => clearFor(g)}>
+                    Clear
+                  </Button>
+                </div>
               </div>
 
               <div className="mt-3 grid grid-cols-5 gap-2">
