@@ -106,7 +106,7 @@ export const useUIStore = create<UIState>((set) => ({
   bufferSize: 100,
   setBufferSize: (val) => set({ bufferSize: val }),
 
-  activeTab: 'graph',
+  activeTab: 'graphEngine',
   setActiveTab: (tab) => set({ activeTab: tab }),
 
   activeSection: 'dashboard',

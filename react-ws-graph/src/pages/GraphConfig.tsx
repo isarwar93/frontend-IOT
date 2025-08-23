@@ -1,16 +1,31 @@
 // src/pages/GraphConfig.tsx
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef } from "react";
 import { useGraphStore } from "@/store/useGraphStore";
 import { useBLEStore } from "@/store/useBLEStore";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { useEffect } from "react"; 
+import SoftNumberInput from "@/components/SoftNumInput";
+
+import React from "react";
 
 type CharMeta = { id: string; name?: string; uuid: string; numberOfValues: number };
 
 export default function GraphConfig() {
-  const { configs, addConfig, removeConfig, numGraphs, setNumGraphs, axis, setAxis, display, setDisplay } =
+  const { configs, addConfig, removeConfig, numGraphs, setNumGraphs, axis, setAxis, display, setDisplay , bufferSize, setBufferSize } =
     useGraphStore();
   const { charValues } = useBLEStore();
+
+  // inside GraphConfig()
+  const hasHydrated = useGraphStore((s) => s._hasHydrated);
+  if (!hasHydrated) {
+    return (
+      <div className="p-6 text-sm text-muted-foreground">
+        Loading saved graph settings…
+      </div>
+    );
+  }
+
 
   // Flatten BLE charValues -> list for UI
   const chars: CharMeta[] = useMemo(() => {
@@ -32,8 +47,16 @@ export default function GraphConfig() {
   const [minY, setMinY] = useState(axis.min);
   const [maxY, setMaxY] = useState(axis.max);
 
+ 
+  useEffect(() => {
+    setMinY(axis.min);
+    setMaxY(axis.max);
+  }, [hasHydrated, axis.min, axis.max]);
+
   const applyAxis = () => setAxis({ ...axis, min: minY, max: maxY });
   const toggleUseBar = () => setDisplay({ ...display, useBar: !display.useBar });
+  const globalDefault = useGraphStore((s) => s.graphUi.defaultGraphsPerChar);
+  const setGraphUi   = useGraphStore((s) => s.setGraphUi);
 
   return (
     <div className="p-6 space-y-8">
@@ -45,15 +68,16 @@ export default function GraphConfig() {
 
         <div className="flex flex-wrap gap-4">
           <div className="flex items-center gap-2">
-            <label className="text-sm font-medium">Number of Columns:</label>
-            <Input
-              type="number"
-              value={numGraphs}
-              onChange={(e) => setNumGraphs(Number(e.target.value))}
-              className="w-24"
+            <label className="text-sm font-medium">X Buffer Size:</label>
+            <SoftNumberInput
+              value={bufferSize}
+              min={10}              //  lower bound
+              max={5000}              //  upper bound
+              step={1}
+              withSteppers         // +/- buttons
+              onChange={(n) => setBufferSize(n)}
             />
           </div>
-
           <div className="flex items-center gap-2">
             <label className="text-sm font-medium">Y-Axis Fixed:</label>
             <input
@@ -73,20 +97,24 @@ export default function GraphConfig() {
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <label className="text-sm">Min Y:</label>
-              <Input
-                className="w-24"
-                type="number"
+              <SoftNumberInput
                 value={minY}
-                onChange={(e) => setMinY(Number(e.target.value))}
+                min={-5000}              // lower bound
+                max={5000}              //  upper bound
+                step={1}
+                withSteppers         //  +/- buttons
+                onChange={(e) => setMinY(Number(e))}
               />
             </div>
             <div className="flex items-center gap-2">
               <label className="text-sm">Max Y:</label>
-              <Input
-                className="w-24"
-                type="number"
+              <SoftNumberInput
                 value={maxY}
-                onChange={(e) => setMaxY(Number(e.target.value))}
+                min={-5000}              // lower bound
+                max={5000}              //  upper bound
+                step={1}
+                withSteppers         //  +/- buttons
+                onChange={(e) => setMaxY(Number(e))}
               />
             </div>
             <Button size="sm" onClick={applyAxis}>
@@ -146,7 +174,9 @@ export default function GraphConfig() {
   );
 }
 
-/** Per-characteristic exclusive assignment UI */
+
+
+/**  -------Per-characteristic exclusive assignment UI ---------*/
 function CharConfigurator({
   charMeta,
   onCreate,
@@ -160,56 +190,135 @@ function CharConfigurator({
   }[]) => void;
 }) {
   const { name, uuid, numberOfValues } = charMeta;
+  const autoSelectAll       = useGraphStore((s) => s.graphUi.autoSelectAll);
+  const savedAssignments    = useGraphStore((s) => s.graphUi.waveformSelections[uuid]);
+  const setWaveformSel      = useGraphStore((s) => s.setWaveformSelection);
 
-  // How many graphs to open for assignment (up to numberOfValues; you said "up to 5" — we cap by both)
+  const { configs, removeConfig /* ...rest */ } = useGraphStore();
+
+  // How many graphs to open for assignment (up to numberOfValues;)
   const [graphsCount, setGraphsCount] = useState(
-    Math.min(5, Math.max(0, numberOfValues))
+    Math.min(1, Math.max(0, numberOfValues))
   );
 
   // assignments[graphIndex] = array of selected waveform indices (1..numberOfValues)
   const [assignments, setAssignments] = useState<Record<number, number[]>>({});
+  const didInit = useRef(false);
+  useEffect(() => {
+  if (savedAssignments && Object.keys(savedAssignments).length > 0) {
+
+    setAssignments(savedAssignments);
+      // try to reflect the largest used graph index from saved selection
+      const maxG = Math.max(
+        0,
+        ...Object.keys(savedAssignments).map((k) => Number(k) || 0)
+      );
+      if (maxG > 0) {
+        setGraphsCount(Math.min(maxG, numberOfValues));
+      }
+    } else if (autoSelectAll && numberOfValues > 0) {
+      if (didInit.current) return;
+      if (numberOfValues <= 0) return;
+      if (Object.keys(assignments).length > 0) return;
+      // first-time UX: auto-select all into Graph 1 if allowed
+      const all = Array.from({ length: numberOfValues }, (_, i) => i + 1);
+      setAssignments({ 1: all });
+      didInit.current = true;
+      setGraphsCount(Math.min(1, numberOfValues));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [savedAssignments, autoSelectAll, numberOfValues, uuid]);
+
+  //  persist every change to assignments back into the store
+  useEffect(() => {
+    // avoid writing empty {} on first mount when nothing chosen and no autoSelectAll
+    if (!assignments) return;
+    setWaveformSel(uuid, assignments);
+  }, [uuid, assignments, setWaveformSel]);
+
+   // 1-based indices of waveforms already used in saved configs for this UUID
+  const usedInExisting = useMemo(() => {
+    const set = new Set<number>();
+    for (const cfg of configs) {
+      if (cfg.sourceUUID !== uuid) continue;
+      for (const line of cfg.lines) {
+        const idx =
+          typeof line.byteIndex === "number" ? line.byteIndex : Number(line.byteIndex);
+        if (!Number.isNaN(idx)) set.add(idx + 1); // UI is 1-based
+      }
+    }
+    return set;
+  }, [configs, uuid]);
+
+  const freeFor = React.useCallback(
+  (g: number) => {
+    const taken = new Set<number>(usedInExisting);   // locked by existing saved configs
+    // also block what other graphs in THIS panel already selected
+    for (let i = 1; i <= graphsCount; i++) {
+      if (i === g) continue;
+      (assignments[i] ?? []).forEach((w) => taken.add(w));
+    }
+    // everything not taken is free
+    return Array.from({ length: numberOfValues }, (_, i) => i + 1).filter(
+      (w) => !taken.has(w)
+    );
+  },
+  [usedInExisting, assignments, graphsCount, numberOfValues]
+);
 
   // exclusivity toggle
   const toggle = (g: number, w: number) => {
     setAssignments((prev) => {
-      // remove w from *all* graphs first (exclusivity)
-      const cleaned: Record<number, number[]> = {};
+      const wasInG = (prev[g] ?? []).includes(w);
+      if (usedInExisting.has(w) && !wasInG) return prev; // refuse taking a locked waveform
+      // Start with a copy that removes w from all graphs (exclusivity)
+      const next: Record<number, number[]> = {};
       const keys = new Set<number>([
         ...Object.keys(prev).map(Number),
         ...Array.from({ length: graphsCount }, (_, i) => i + 1),
       ]);
+
       for (const k of keys) {
         const arr = prev[k] ?? [];
-        cleaned[k] = arr.filter((x) => x !== w);
+        next[k] = arr.filter((x) => x !== w);
       }
-      // then toggle on this graph
-      const has = (cleaned[g] ?? []).includes(w);
-      cleaned[g] = has
-        ? cleaned[g].filter((x) => x !== w)
-        : [...(cleaned[g] ?? []), w].sort((a, b) => a - b);
-      return cleaned;
+
+      // If it wasn't in g before, add it now; if it was, we leave it removed (toggle off)
+      if (!wasInG) {
+        next[g] = [...(next[g] ?? []), w].sort((a, b) => a - b);
+      }
+      return next;
     });
   };
 
-  // NEW: assign all waveforms to a specific graph (and remove from others)
+  // assign all waveforms to a specific graph (and remove from others)
   const selectAllFor = (g: number) => {
-    setAssignments(() => {
-      const cleaned: Record<number, number[]> = {};
-      // wipe everyone first (exclusivity)
-      for (let i = 1; i <= graphsCount; i++) cleaned[i] = [];
-      // then assign all 1..numberOfValues to the target graph
-      cleaned[g] = Array.from({ length: numberOfValues }, (_, i) => i + 1);
-      return cleaned;
+    setAssignments((prev) => {
+      const next: Record<number, number[]> = {};
+      // keep existing selections for all graphs
+      for (let i = 1; i <= graphsCount; i++) next[i] = [...(prev[i] ?? [])];
+      // compute allowed waveforms for this graph (won't steal from others)
+      const allowed = freeFor(g);
+      // set this graph to all allowed (you could also union with existing if you prefer)
+      next[g] = allowed;
+      return next;
     });
   };
 
-  // NEW: clear only this graph's selection
+  // clear only this graph's selection
   const clearFor = (g: number) => {
     setAssignments((prev) => ({ ...prev, [g]: [] }));
   };
 
-  // is waveform w selected in any graph other than g?
-  const usedElsewhere = (g: number, w: number) => {
+  const removeAllGraphs = () => {
+    if (configs.length === 0) return;
+    if (!confirm(`Delete all ${configs.length} graphs?`)) return;
+    configs.forEach((c) => removeConfig(c.id));
+  };
+  
+
+  const usedAnywhereBut = (g: number, w: number) => {
+    if (usedInExisting.has(w)) return true; // already in a saved graph region
     for (let i = 1; i <= graphsCount; i++) {
       if (i === g) continue;
       if ((assignments[i] ?? []).includes(w)) return true;
@@ -217,7 +326,6 @@ function CharConfigurator({
     return false;
   };
 
-  const clear = () => setAssignments({});
   const buildAndCreate = () => {
     const cfgs: {
       id: string;
@@ -304,7 +412,7 @@ function CharConfigurator({
                   <Button size="sm" variant="outline" onClick={() => selectAllFor(g)}>
                     Select all
                   </Button>
-                  <Button size="sm" variant="ghost" onClick={() => clearFor(g)}>
+                  <Button size="sm" variant="secondary" onClick={() => clearFor(g)}>
                     Clear
                   </Button>
                 </div>
@@ -313,7 +421,7 @@ function CharConfigurator({
               <div className="mt-3 grid grid-cols-5 gap-2">
                 {Array.from({ length: numberOfValues }, (_, i) => i + 1).map((w) => {
                   const checked = (assignments[g] ?? []).includes(w);
-                  const lock = usedElsewhere(g, w); // lock elsewhere
+                  const lock = usedAnywhereBut(g, w);
                   return (
                     <label
                       key={w}
@@ -322,10 +430,12 @@ function CharConfigurator({
                       }`}
                       title={
                         lock && !checked
-                          ? `Waveform ${w} is already assigned to another graph`
+                          ? usedInExisting.has(w)
+                            ? `Waveform ${w} is already used in another graph region`
+                            : `Waveform ${w} is already assigned in another panel`
                           : `Waveform ${w}`
                       }
-                    >
+                      >
                       <input
                         type="checkbox"
                         checked={checked}
@@ -347,8 +457,8 @@ function CharConfigurator({
         <Button size="sm" onClick={buildAndCreate} disabled={graphsCount === 0}>
           ➕ Create Graphs from Selection
         </Button>
-        <Button size="sm" variant="outline" onClick={clear} disabled={graphsCount === 0}>
-          Clear Selection
+        <Button variant="danger" size="sm" onClick={removeAllGraphs}>
+          🗑️ Delete all graphs
         </Button>
       </div>
     </div>

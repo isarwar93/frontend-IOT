@@ -53,9 +53,11 @@ interface BLEStore {
   setIsScanning: (v: boolean) => void;
   setShowScanned: (v: boolean) => void;
   setShowConnected: (v: boolean) => void;
+
 }
 
 export const useBLEStore = create<BLEStore>((set) => ({
+
   bleDevices: [],
   connectedDevices: [],
   gattMap: {},
@@ -70,6 +72,8 @@ export const useBLEStore = create<BLEStore>((set) => ({
   isScanning: false,
   showScanned: true,
   showConnected: false,
+
+  scrollY: 0,
 
   setBleDevices: (d) => set({ bleDevices: d }),
   setConnectedDevices: (d) => set({ connectedDevices: d }),

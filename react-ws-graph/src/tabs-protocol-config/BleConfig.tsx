@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef , useLayoutEffect, useCallback } from "react";
 import axios from "axios";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -55,6 +55,7 @@ const GATT_LABELS: Record<string, string> = {
 const getLabel = (uuid: string) => GATT_LABELS[uuid.toLowerCase()] || uuid;
 
 export const BLEConfig: React.FC = () => {
+
   const {
     bleDevices, setBleDevices,
     connectedDevices, setConnectedDevices,
@@ -271,6 +272,8 @@ export const BLEConfig: React.FC = () => {
 
   return (
     <div className="space-y-8">
+
+
       {/* Header */}
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">BLE Configuration</h2>

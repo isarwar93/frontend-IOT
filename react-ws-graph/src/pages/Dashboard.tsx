@@ -7,7 +7,7 @@ import { ChatView } from "../tabs-dashboard/ChatView";
 import { AnalysisView } from "../tabs-dashboard/AnalysisView";
 import { LineChart, Flame, MessageSquare, BarChart, Icon, GitGraphIcon, GlassesIcon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { Graph } from "@/components/Graph";
+// import { Graph } from "@GraphView";
 
 interface Props {
     nickname: string;
@@ -18,7 +18,6 @@ const tabs = [
     { key: "graphEngine", label: "GraphEngine", icon: GlassesIcon },
     { key: "video", label: "Video", icon: Flame },
     { key: "analysis", label: "Analysis", icon: Flame },
-
     { key: "graph", label: "Graph", icon: LineChart },
     { key: "chat", label: "Chat", icon: MessageSquare },
 ];
