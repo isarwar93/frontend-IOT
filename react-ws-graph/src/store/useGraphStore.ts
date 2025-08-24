@@ -2,6 +2,62 @@
 import { create } from "zustand";
 import { devtools, persist } from "zustand/middleware";
 
+
+const sliceEnd = <T,>(arr: T[], max: number): T[] =>
+  arr.length > max ? arr.slice(arr.length - max) : arr;
+
+// export const useGraphStore = create<State>()(
+//   persist(
+//     devtools((set, get) => ({
+//       data: {},
+//       bufferSize: 600,
+//       setBufferSize: (n) => set({ bufferSize: Math.max(10, n | 0) }),
+
+//       // Insert ONE row and trim
+//       pushData: (id, row) => {
+//         const cur = get().data[id] ?? [];
+//         const max = get().bufferSize;
+//         const next = sliceEnd([...cur, row], max);
+//         set((s) => ({ data: { ...s.data, [id]: next } }));
+//       },
+
+//       // Insert MANY rows per id and trim ONCE
+//       pushMany: (batches) => {
+//         const max = get().bufferSize;
+//         const merged: Record<string, GraphRow[]> = { ...get().data };
+//         for (const [id, rows] of Object.entries(batches)) {
+//           if (!rows || rows.length === 0) continue;
+//           const prev = merged[id] ?? [];
+//           // Assume 'rows' are already in ascending time order; if not, sort by timestamp once before concat.
+//           let next = prev.concat(rows);
+//           next = sliceEnd(next, max);
+//           merged[id] = next;
+//         }
+//         set({ data: merged });
+//       },
+
+//       // … keep your other state (configs/axis/display/numGraphs/etc.)
+//       configs: [],
+//       axis: { fixed: false, min: 0, max: 100, tickCount: 5 },
+//       display: { useBar: false, showGrid: true, showLegend: false, widthPct: 100, height: 220, palette: [] },
+//       numGraphs: 1,
+//     })),
+//     {
+//       name: "graph-store-v1",
+//       // Persist only what’s useful. Data can be persisted if you want, but can be large.
+//       partialize: (s) => ({
+//         data: s.data,
+//         bufferSize: s.bufferSize,
+//         configs: s.configs,
+//         axis: s.axis,
+//         display: s.display,
+//         numGraphs: s.numGraphs,
+//       }),
+//     }
+//   )
+// );
+
+
 // ----- Types that match your current GraphConfigPage + BleConfig -----
 export type LineDef = {
   label: string;                 // e.g. "Heart Rate"
@@ -67,7 +123,10 @@ type GraphStore = {
   data: Record<string, GraphRow[]>;
   bufferSize: number;
   setBufferSize: (n: number) => void;
-  pushData: (configId: string, row: Record<string, number>) => void;
+  pushMany: (batches: Record<string, GraphRow[]>) => void;
+
+  // pushData: (configId: string, row: Record<string, number>) => void;
+  pushData: (id: string, row: GraphRow) => void,
   clearData: (configId?: string) => void;
 
   // Global layout / behavior
@@ -152,16 +211,40 @@ export const useGraphStore = create<GraphStore>()(
           set({ bufferSize: Math.max(10, Math.min(50000, Math.floor(n))) }),
 
         // `row` is series values keyed by line.label; we add timestamp automatically
-        pushData: (configId, row) => {
-          const ts = Date.now();
-          const entry: GraphRow = { timestamp: ts, ...row };
-          const { data, bufferSize } = get();
-          const existing = data[configId] ?? [];
-          const next =
-            existing.length >= bufferSize
-              ? [...existing.slice(existing.length - bufferSize + 1), entry]
-              : [...existing, entry];
-          set({ data: { ...data, [configId]: next } });
+        // pushData: (configId, row) => {
+        //   const ts = Date.now();
+        //   const entry: GraphRow = { timestamp: ts, ...row };
+        //   const { data, bufferSize } = get();
+        //   const existing = data[configId] ?? [];
+        //   const next =
+        //     existing.length >= bufferSize
+        //       ? [...existing.slice(existing.length - bufferSize + 1), entry]
+        //       : [...existing, entry];
+        //   set({ data: { ...data, [configId]: next } });
+        // },
+
+
+
+        // Keep the impl the same, but typed to GraphRow:
+        pushData: (id, row) => set((s) => {
+          const prev = s.data[id] ?? [];
+          const next = [...prev, row];
+          if (next.length > s.bufferSize) next.splice(0, next.length - s.bufferSize);
+          return { data: { ...s.data, [id]: next } };
+        }),
+
+        pushMany: (batches) => {
+          const max = get().bufferSize;
+          const merged: Record<string, GraphRow[]> = { ...get().data };
+          for (const [id, rows] of Object.entries(batches)) {
+            if (!rows || rows.length === 0) continue;
+            const prev = merged[id] ?? [];
+            // Assume 'rows' are already in ascending time order; if not, sort by timestamp once before concat.
+            let next = prev.concat(rows);
+            next = sliceEnd(next, max);
+            merged[id] = next;
+          }
+          set({ data: merged });
         },
 
         clearData: (configId) => {

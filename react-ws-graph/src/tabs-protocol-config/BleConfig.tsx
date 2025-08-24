@@ -229,10 +229,15 @@ export const BLEConfig: React.FC = () => {
     }
   };
 
-  const handleRead = async (mac: string, uuid: string) => {
+  const handleRead = async (mac: string, 
+                            path: string,
+                            uuid: string) => {
+                
     try {
-      const res = await axios.get(`${BASE_URL}/api/ble/read/mac=${mac}/uuid=${uuid}`);
-      alert(`Read from ${uuid}: ${res.data.value}`);
+      const res = await axios.get(
+        `${BASE_URL}/api/ble/read/mac=${mac}/uuid=${uuid}/path=${path}`);
+
+      alert(`Read from ${path}: ${res.data.value}`);
     } catch {
       alert("Read failed");
     }
@@ -388,7 +393,7 @@ export const BLEConfig: React.FC = () => {
 
                           <div className="flex gap-2 flex-wrap items-center">
                             {char.properties.includes("read") && (
-                              <Button size="sm" onClick={() => handleRead(dev.mac, char.uuid)}>
+                              <Button size="sm" onClick={() => handleRead(dev.mac, char.uuid, char.path)}>
                                 Read
                               </Button>
                             )}
