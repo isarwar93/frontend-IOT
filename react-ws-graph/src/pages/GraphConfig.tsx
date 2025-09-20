@@ -28,20 +28,44 @@ export default function GraphConfig() {
 
 
   // Flatten BLE charValues -> list for UI
-  const chars: CharMeta[] = useMemo(() => {
-    const list: CharMeta[] = [];
-    for (const [id, meta] of Object.entries(charValues || {})) {
-      const parts = id.split("-");
-      const uuid = parts[parts.length - 1] || id;
-      list.push({
-        id,
-        uuid,
-        name: meta?.name,
-        numberOfValues: Number(meta?.numberOfValues ?? 0),
-      });
+  // const chars: CharMeta[] = useMemo(() => {
+  //   const list: CharMeta[] = [];
+  //   for (const [id, meta] of Object.entries(charValues || {})) {
+  //     const parts = id.split("-");
+  //     const uuid = parts[parts.length - 1] || id;
+  //     list.push({
+  //       id,
+  //       uuid,
+  //       name: meta?.name,
+  //       numberOfValues: Number(meta?.numberOfValues ?? 0),
+  //     });
+  //   }
+  //   return list.sort((a, b) => (a.name || a.uuid).localeCompare(b.name || b.uuid));
+  // }, [charValues]);
+
+
+const chars: CharMeta[] = useMemo(() => {
+  const list: CharMeta[] = [];
+  for (const [cid, meta] of Object.entries(charValues || {})) {
+    // Prefer the uuid we stored in BLEConfig
+    let uuid = (meta as any)?.uuid as string | undefined;
+
+    // Fallback: extract a proper 36-char UUID from the cid
+    if (!uuid) {
+      const m = cid.match(/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}/);
+      uuid = m ? m[0] : cid; // last resort: whole cid
     }
-    return list.sort((a, b) => (a.name || a.uuid).localeCompare(b.name || b.uuid));
-  }, [charValues]);
+
+    list.push({
+      id: cid,
+      uuid,
+      name: (meta as any)?.name,
+      numberOfValues: Number((meta as any)?.numberOfValues ?? 0),
+    });
+  }
+  return list.sort((a, b) => (a.name || a.uuid).localeCompare(b.name || b.uuid));
+}, [charValues]);
+
 
   // ------- Global settings quick edits -------
   const [minY, setMinY] = useState(axis.min);
@@ -240,7 +264,8 @@ function CharConfigurator({
   const usedInExisting = useMemo(() => {
     const set = new Set<number>();
     for (const cfg of configs) {
-      if (cfg.sourceUUID !== uuid) continue;
+      // if (cfg.sourceUUID !== uuid) continue;
+      if ((cfg as any).sourceKey !== charMeta.id) continue;
       for (const line of cfg.lines) {
         const idx =
           typeof line.byteIndex === "number" ? line.byteIndex : Number(line.byteIndex);
@@ -331,6 +356,7 @@ function CharConfigurator({
       id: string;
       title: string;
       sourceUUID: string;
+      sourceKey: string;
       lines: { label: string; byteIndex: string | number }[];
     }[] = [];
 
@@ -344,10 +370,21 @@ function CharConfigurator({
         byteIndex: w - 1,
       }));
 
+      // cfgs.push({
+      //   id: `${uuid}_${Date.now()}_G${g}`,
+      //   title: `${name || uuid} — Graph ${g}`,
+      //   sourceUUID: uuid,
+      //   lines,
+      // });
+
+
+
+      //  (add sourceKey, keep sourceUUID for legacy):
       cfgs.push({
         id: `${uuid}_${Date.now()}_G${g}`,
         title: `${name || uuid} — Graph ${g}`,
-        sourceUUID: uuid,
+        sourceUUID: uuid,            // legacy
+        sourceKey: charMeta.id,      // <= this is the full cid (mac|path|uuid)
         lines,
       });
     }

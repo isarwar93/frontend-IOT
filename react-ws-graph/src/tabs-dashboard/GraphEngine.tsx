@@ -6,61 +6,81 @@ import {
 } from "recharts";
 import { useGraphStore } from "@/store/useGraphStore";
 import { useBLEStore } from "@/store/useBLEStore";
-import { Button } from "@/components/ui/Button";
 import StreamControlBar from "@/components/StreamControlBar";
 
 type WSKey = string; // `${mac}|${uuid}`
 const WS_BASE = import.meta.env.VITE_API_BASE_URL_WS ?? "";
 
-/** Parse backend frame like: { time, id: "n.m" | n.m, value } */
-function parseBackendFrame(raw: string): {
-  t: number; idInt: number; idFrac: number; value: number;
-} | null {
+// Parse only: { id: "Characteristic <name>.<idx>", time, value }
+type ParsedNameFrame = { t: number; value: number; baseName: string; chanIdx: number };
+
+function parseNamedFrame(raw: string): ParsedNameFrame | null {
   try {
     const msg = JSON.parse(raw);
+    const value = Number(msg?.value);
+    if (!Number.isFinite(value)) return null;
+
     let t = Date.now();
     if (typeof msg?.time === "number") t = msg.time;
     else if (typeof msg?.time === "string") t = Number(msg.time);
+    if (!Number.isFinite(t)) return null;
 
-    let idNum: number | null = null;
-    if (typeof msg?.id === "number") idNum = msg.id;
-    else if (typeof msg?.id === "string") idNum = Number(msg.id);
+    if (typeof msg?.id !== "string") return null;
+    const idStr = msg.id.trim();
 
-    const value =
-      typeof msg?.value === "number"
-        ? msg.value
-        : (typeof msg?.value === "string" ? Number(msg.value) : NaN);
+    // Accept:
+    //  "Characteristic <name>.<idx>"
+    //  "Characteristic <name> [<idx>]"
+    //  "<name>.<idx>"
+    //  "<name> [<idx>]"
+    let m =
+      /^Characteristic\s+(.+?)(?:[.\[]\s*(\d+)\s*\]?)?$/.exec(idStr) ||
+      /^(.+?)(?:[.\[]\s*(\d+)\s*\]?)?$/.exec(idStr);
+    if (!m) return null;
 
-    if (!Number.isFinite(t) || !Number.isFinite(idNum as number) || !Number.isFinite(value)) {
-      return null;
-    }
+    const baseName = (m[1] ?? "").trim();
+    const chanIdx = m[2] ? Number(m[2]) : 1;
+    if (!baseName || !Number.isFinite(chanIdx) || chanIdx < 1) return null;
 
-    const idStr = String(idNum);
-    const [intPartStr, fracPartStr = "0"] = idStr.split(".");
-    const idInt = Number(intPartStr);
-    const idFrac = Number(fracPartStr);
-
-    if (!Number.isInteger(idInt) || !Number.isInteger(idFrac) || idFrac < 1) return null;
-    return { t: Number(t), idInt, idFrac, value: Number(value) };
+    return { t, value, baseName, chanIdx };
   } catch {
     return null;
   }
 }
 
 
+const macHex = (s: string | undefined) =>
+  (s ?? "").replace(/[^a-fA-F0-9]/g, "").toLowerCase();
+
+const normalizeName = (s: string) =>
+  s.replace(/^Characteristic\s+/i, "").trim().replace(/\s+/g, " ").toLowerCase();
+
+const baseFromLabel = (lbl: string) => {
+  // "Custom [0]" -> "Custom"
+  const m = /^(.+?)\s*\[\d+\]\s*$/.exec(lbl.trim());
+  return normalizeName(m ? m[1] : lbl);
+};
+
+const idxFromLine = (ln: { byteIndex: string | number; label: string }): number | null => {
+  const n = Number(ln.byteIndex);
+  if (Number.isFinite(n)) return n;                 // explicit numeric mapping wins
+  const m = /\[(\d+)\]\s*$/.exec(String(ln.label)); // label suffix "[n]"
+  return m ? Number(m[1]) : null;
+};
+
+
+
 export const GraphEngine: React.FC = () => {
   const {
     configs,
     data,
-    pushMany, 
-    pushData,
+    pushMany,
     axis,
     display,
     numGraphs,
-    bufferSize,
   } = useGraphStore();
 
-  // Listen for global start/stop requests coming from the control bar
+  // Listen for global start/stop from StreamControlBar
   useEffect(() => {
     const onStart = () => connectAll();
     const onStop  = () => disconnectAll();
@@ -84,40 +104,56 @@ export const GraphEngine: React.FC = () => {
     [connectedDevices]
   );
 
-  /** Unique UUIDs (order matters for idInt mapping) */
-  const uniqueUUIDs = useMemo(() => {
-    const s = new Set<string>();
-    for (const cfg of configs) s.add(cfg.sourceUUID);
-    return Array.from(s);
-  }, [configs]);
 
-  /** Map UUID -> list of configs that use it */
-  const uuidToConfigs = useMemo(() => {
-    const map = new Map<string, typeof configs>();
-    for (const u of uniqueUUIDs) {
-      map.set(u, configs.filter((c) => c.sourceUUID === u));
+
+// Map: "<normalizedBaseName>|<idx0>|<macHex>" -> Target[]
+const routeByNameChan = useMemo(() => {
+  type Target = { cfgId: string; label: string; macHex?: string };
+  const map = new Map<string, Target[]>();
+
+  const add = (name: string, idx0: number, macH: string, t: Target) => {
+    const k = `${normalizeName(name)}|${idx0}|${macH}`;
+    const arr = map.get(k) ?? [];
+    if (!arr.some(x => x.cfgId === t.cfgId && x.label === t.label)) arr.push(t);
+    map.set(k, arr);
+  };
+
+  for (const cfg of configs) {
+    const macRaw = String((cfg as any)?.sourceKey ?? "").split("|")[0] ?? "";
+    const macH = macHex(macRaw);
+
+    // Which base-names do we associate with this config?
+    const names = new Set<string>();
+    const title = String(cfg.title ?? "").split("—")[0].trim();
+    if (title) names.add(title);
+    const srcLabel = String((cfg as any)?.sourceLabel ?? "").trim();
+    if (srcLabel) names.add(srcLabel);
+    for (const ln of cfg.lines ?? []) names.add(baseFromLabel(String(ln.label ?? "")));
+
+    // Map each line to its channel index
+    for (const ln of cfg.lines ?? []) {
+      const idx0 = idxFromLine(ln as any);
+      if (idx0 == null) continue;
+      for (const nm of names) {
+        add(nm, idx0, macH, { cfgId: cfg.id, label: ln.label, macHex: macH });
+      }
     }
-    return map;
-  }, [uniqueUUIDs, configs]);
+  }
+  return map;
+}, [configs]);
 
-  /** Map UUID -> its index inside uniqueUUIDs */
-  // const uuidIndex = useMemo(() => {
-  //   const m = new Map<string, number>();
-  //   uniqueUUIDs.forEach((u, i) => m.set(u, i));
-  //   return m;
-  // }, [uniqueUUIDs]);
 
-  // --- WS management ---
+
+
+  // --- WebSocket management ---
   const socketsRef = useRef<Record<WSKey, WebSocket>>({});
   const [isConnected, setIsConnected] = useState(false);
 
-   // pending batches + flush timer
+  // Pending batches + debounced flush
   type Row = { timestamp: number } & Record<string, number>;
-
   const pendingRef = useRef<Record<string, Row[]>>({});
-  //const pendingRef = useRef<Record<string, { timestamp: number } & Record<string, number>[]> >({});
   const flushTimerRef = useRef<number | null>(null);
-  const FLUSH_MS = 80; // ~12.5 fps is enough for smooth charts. Tune if you like.
+  const FLUSH_MS = 80; // ~12.5 fps is smooth
 
   const scheduleFlush = () => {
     if (flushTimerRef.current != null) return;
@@ -125,13 +161,22 @@ export const GraphEngine: React.FC = () => {
       flushTimerRef.current = null;
       const batches = pendingRef.current;
       pendingRef.current = {};
-      if (Object.keys(batches).length > 0) {
-        // Single store update for ALL charts
-        pushMany(batches);
+      if (Object.keys(batches).length === 0) return;
+      // Coalesce rows per cfgId by timestamp so sparse series align nicely
+      const coalesced: Record<string, Row[]> = {};
+      for (const [cfgId, arr] of Object.entries(batches)) {
+        const byTs = new Map<number, Row>();
+        for (const r of arr) {
+          const prev = byTs.get(r.timestamp) ?? { timestamp: r.timestamp };
+          Object.assign(prev, r);
+          byTs.set(r.timestamp, prev);
+        }
+        coalesced[cfgId] = Array.from(byTs.values());
       }
+      // console.log("Graph pushMany", coalesced);
+      pushMany(coalesced);
     }, FLUSH_MS);
   };
-
 
   const recomputeConnected = (pool: Record<WSKey, WebSocket>) => {
     const anyOpen = Object.values(pool).some((x) => x.readyState === WebSocket.OPEN);
@@ -139,82 +184,64 @@ export const GraphEngine: React.FC = () => {
     window.dispatchEvent(new CustomEvent("graph:state", { detail: { running: anyOpen } }));
   };
 
+const connectAll = () => {
+  if (!deviceMac) return;
+  const created: Record<WSKey, WebSocket> = { ...socketsRef.current };
 
-  const connectAll = () => {
-    if (!deviceMac) return;
-    const created: Record<WSKey, WebSocket> = { ...socketsRef.current };
+  const key: WSKey = deviceMac;               // one socket per MAC
+  if (created[key] && created[key].readyState === WebSocket.OPEN) return;
 
-    for (const uuid of uniqueUUIDs) {
-      const key: WSKey = `${deviceMac}|${uuid}`;
-      if (created[key] && created[key].readyState === WebSocket.OPEN) continue;
+  const safeMac = deviceMac.replace(/:/g, "_");
+  const url = `${WS_BASE}/ws/ble/graph/mac=${encodeURIComponent(safeMac)}`;
+  const ws = new WebSocket(url);
 
-      const safeMac = deviceMac.replace(/:/g, "_"); // backend expects underscores
-      const url = `${WS_BASE}/ws/ble/graph/mac=${encodeURIComponent(safeMac)}/uuid=${encodeURIComponent(uuid)}`;
-      console.log("Connecting to WS:", url);
-      const ws = new WebSocket(url);
-
-      ws.onopen = () => {
-        console.log("WS open", key);
-        created[key] = ws;
-        socketsRef.current = { ...created };
-        recomputeConnected(created);
-      };
-
-      ws.onmessage = (ev) => {
-        const parsed = parseBackendFrame(ev.data);
-        if (!parsed) return;
-        const { t, idFrac, value } = parsed;
-
-        const lineIndex = idFrac > 0 ? idFrac - 1 : 0;
-        const cfgsForUuid = uuidToConfigs.get(uuid) ?? [];
-        if (cfgsForUuid.length === 0) return;
-
-        for (const cfg of cfgsForUuid) {
-          const matches = cfg.lines.filter(
-            (ln) => typeof ln.byteIndex === "number" && (ln.byteIndex as number) === lineIndex
-          );
-          if (matches.length === 0) continue;
-
-          const patch: Record<string, number> = {};
-          for (const ln of matches) patch[ln.label] = value;
-
-          // ---- batched queue (typed) ----
-          const row: Row = { timestamp: t, ...patch };
-          const map = pendingRef.current;
-          if (!map[cfg.id]) map[cfg.id] = [] as Row[];
-          map[cfg.id]!.push(row);
-        }
-
-        scheduleFlush(); // debounced pushMany()
-      };
-
-
-      ws.onerror = () => {
-        console.warn("WS error", key);
-      };
-
-      ws.onclose = () => {
-        delete created[key];
-        socketsRef.current = { ...created };
-        recomputeConnected(created);
-      };
-
-      created[key] = ws;
-    }
-
-    socketsRef.current = created;
+  ws.onopen = () => {
+    created[key] = ws;
+    socketsRef.current = { ...created };
     recomputeConnected(created);
   };
 
+  ws.onmessage = (ev) => {
+    const pf = parseNamedFrame(ev.data);
+    if (!pf) return;
+
+    const idx0 = Math.max(0, pf.chanIdx - 1);
+    const devMacH = macHex(deviceMac);
+    const k = `${normalizeName(pf.baseName)}|${idx0}|${devMacH}`;
+    const targets = routeByNameChan.get(k);
+
+    if (targets && targets.length) {
+      for (const t of targets) {
+        // (macHex already part of the key, this is just extra safety)
+        if (t.macHex && devMacH && t.macHex !== devMacH) continue;
+        (pendingRef.current[t.cfgId] ??= []).push({ timestamp: pf.t, [t.label]: pf.value });
+      }
+      scheduleFlush();
+      return;
+    }
+
+    // console.warn("Unroutable frame", { base: pf.baseName, idx0, mac: deviceMac });
+  };
+
+  ws.onerror = () => { console.warn("WS error", key); };
+
+  ws.onclose = () => {
+    delete created[key];
+    socketsRef.current = { ...created };
+    recomputeConnected(created);
+  };
+
+  created[key] = ws;
+  socketsRef.current = created;
+  recomputeConnected(created);
+};
+
+
   const disconnectAll = () => {
-    console.log("Disconnecting all WebSockets");
     const cur = socketsRef.current;
-    Object.values(cur).forEach((ws) => {
-      try { ws.close(); } catch {}
-    });
+    Object.values(cur).forEach((ws) => { try { ws.close(); } catch {} });
     socketsRef.current = {};
     setIsConnected(false);
-    Object.values(socketsRef.current).forEach((ws) => { try { ws.close(); } catch {} });
 
     window.dispatchEvent(new CustomEvent("graph:state", { detail: { running: false } }));
     // Clear pending + timer
@@ -258,28 +285,6 @@ export const GraphEngine: React.FC = () => {
   return (
     <div className="space-y-4">
       <StreamControlBar />
-      {/* Connection controls */}
-      {/* <div className="flex items-center justify-between rounded-md border p-3">
-        <div className="text-sm">
-          <div className="font-medium">
-            Device MAC: <span className="text-muted-foreground">{deviceMac || "— (no device)"}</span>
-          </div>
-          <div className="text-muted-foreground">
-            Streams: {uniqueUUIDs.length} | Buffer/graph: {bufferSize}
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            onClick={isConnected ? disconnectAll : connectAll}
-            disabled={!deviceMac || uniqueUUIDs.length === 0}
-            variant={isConnected ? "outline" : "secondary"}
-          >
-            {isConnected ? "Disconnect" : "Connect"}
-          </Button>
-        </div>
-      </div> */}
-
-      {/* Charts */}
       <div className={gridColsClass}>
         {configs.map((cfg) => {
           const rows = data[cfg.id] ?? [];
@@ -293,7 +298,7 @@ export const GraphEngine: React.FC = () => {
               </div>
 
               <div style={{ height: display.height }}>
-                <ResponsiveContainer width={`${display.widthPct}%`} height="100%">
+                <ResponsiveContainer width="100%" height="100%">
                   {display.useBar ? (
                     <BarChart data={rows}>
                       {display.showGrid && <CartesianGrid strokeDasharray="3 3" />}

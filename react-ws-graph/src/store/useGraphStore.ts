@@ -6,58 +6,6 @@ import { devtools, persist } from "zustand/middleware";
 const sliceEnd = <T,>(arr: T[], max: number): T[] =>
   arr.length > max ? arr.slice(arr.length - max) : arr;
 
-// export const useGraphStore = create<State>()(
-//   persist(
-//     devtools((set, get) => ({
-//       data: {},
-//       bufferSize: 600,
-//       setBufferSize: (n) => set({ bufferSize: Math.max(10, n | 0) }),
-
-//       // Insert ONE row and trim
-//       pushData: (id, row) => {
-//         const cur = get().data[id] ?? [];
-//         const max = get().bufferSize;
-//         const next = sliceEnd([...cur, row], max);
-//         set((s) => ({ data: { ...s.data, [id]: next } }));
-//       },
-
-//       // Insert MANY rows per id and trim ONCE
-//       pushMany: (batches) => {
-//         const max = get().bufferSize;
-//         const merged: Record<string, GraphRow[]> = { ...get().data };
-//         for (const [id, rows] of Object.entries(batches)) {
-//           if (!rows || rows.length === 0) continue;
-//           const prev = merged[id] ?? [];
-//           // Assume 'rows' are already in ascending time order; if not, sort by timestamp once before concat.
-//           let next = prev.concat(rows);
-//           next = sliceEnd(next, max);
-//           merged[id] = next;
-//         }
-//         set({ data: merged });
-//       },
-
-//       // … keep your other state (configs/axis/display/numGraphs/etc.)
-//       configs: [],
-//       axis: { fixed: false, min: 0, max: 100, tickCount: 5 },
-//       display: { useBar: false, showGrid: true, showLegend: false, widthPct: 100, height: 220, palette: [] },
-//       numGraphs: 1,
-//     })),
-//     {
-//       name: "graph-store-v1",
-//       // Persist only what’s useful. Data can be persisted if you want, but can be large.
-//       partialize: (s) => ({
-//         data: s.data,
-//         bufferSize: s.bufferSize,
-//         configs: s.configs,
-//         axis: s.axis,
-//         display: s.display,
-//         numGraphs: s.numGraphs,
-//       }),
-//     }
-//   )
-// );
-
-
 // ----- Types that match your current GraphConfigPage + BleConfig -----
 export type LineDef = {
   label: string;                 // e.g. "Heart Rate"
@@ -72,6 +20,7 @@ export interface GraphConfigItem {
   id: string;
   title: string;
   sourceUUID: string;
+  sourceKey?: string;    
   lines: GraphLine[];
   waveforms?: number;
 }

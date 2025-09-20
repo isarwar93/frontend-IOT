@@ -29,7 +29,7 @@ interface BLEStore {
   connectionStatus: Record<string, string>;
   notifications: Record<string, boolean>;
   notifValues: Record<string, string>;
-  charValues: Record<string, { name: string; numberOfValues: number }>;
+  charValues: Record<string, { name: string; numberOfValues: number,uuid:string,mac:string,path:string }>;
 
   writeValues: Record<string, string>;
   selectedChars: string[];
@@ -45,7 +45,7 @@ interface BLEStore {
   setConnectionStatus: (status: Record<string, string>) => void;
   setNotifications: (map: Record<string, boolean>) => void;
   setNotifValues: (values: Record<string, string>) => void;
-  setCharValues: (values: Record<string, { name: string; numberOfValues: number }>) => void;
+  setCharValues: (values: Record<string, { name: string; numberOfValues: number; uuid:string; mac:string;path:string }>) => void;
 
 
   setWriteValues: (values: Record<string, string>) => void;

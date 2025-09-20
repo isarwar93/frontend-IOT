@@ -105,8 +105,6 @@ export const BLEConfig: React.FC = () => {
 
         console.log("Connected to device:", device.mac);
         // Without this delay, the GATT services might not be ready immediately
-        // FIXME: (in backend) This is a workaround, ideally it should be available immediately
-
         await new Promise((resolve) => setTimeout(resolve, 2000));
         const services = await axios.get(`${BASE_URL}/api/ble/services/${device.mac}`);
         console.log("Services:", services.data);
@@ -164,70 +162,135 @@ export const BLEConfig: React.FC = () => {
     }
   };
 
-  const handleNotifyToggle = async (mac: string, 
-                                    path: string,
-                                    uuid: string,
-                                    charName: string) => {
-    const id = `${mac}-${path}-${uuid}`;
-    console.log("Toggling notify for:", id);
-    const next = !notifications[id];
+  const handleNotifyToggle = async (
+  mac: string,
+  path: string,
+  uuid: string,
+  charName: string
+) => {
+  // Use ONE canonical id everywhere (matches checkbox cid)
+  // const cid = `${mac}-${path}-${uuid}`;
+  const cid = `${mac}|${path}|${uuid}`;
+  const next = !notifications[cid];
+  console.log("Toggling notify for:", cid, " -> ", next ? "enable" : "disable");
 
-    try {
-      const res = await axios.post(`${BASE_URL}/api/ble/notify`, {
-        mac,
-        path,
-        uuid,
-        enable: next,
-      });
-         // Parse the backend response
-      let message = "";
-      let status = "";
-      let numValues = 0;
-      if (Array.isArray(res.data) && res.data[0]?.stringValue) {
-        const parsed = JSON.parse(res.data[0].stringValue);
-        message = parsed.message?.toLowerCase();
-        status = parsed.status;
-        numValues = parsed.number_of_values || 0;
-      }
-       // Save characteristic name and number of values
-      setCharValues({
-        ...charValues,
-        [id]: { name: charName, numberOfValues: numValues },
-      });
-      console.log("check charValues:", charValues);
+  try {
+    const res = await axios.post(`${BASE_URL}/api/ble/notify`, {
+      mac,
+      path,
+      uuid,
+      charName,
+      enable: next,
+    });
 
-      // Update notifications state based on parsed message
-      if (status === "success" && message.includes("enabled")) {
-        setNotifications({ ...notifications, [id]: true });
-      } else if (status === "success" && message.includes("disabled")) {
-        setNotifications({ ...notifications, [id]: false });
-      }
-
-      console.log("/api/ble/notify API response:", res.data);
-
-      if (status === "success" && message.includes("enabled")) {
-        setSelectedChars(
-          selectedChars.includes(id)
-            ? selectedChars
-            : [...selectedChars, id]
-        );
-        console.log("Notifications enabled for:", id);
-        const interval = setInterval(() => {
-          setNotifValues({
-            ...notifValues,
-            [id]: "🟢 Value at " + new Date().toLocaleTimeString(),
-          });
-        }, 1000);
-        } else if (status === "success" && message.includes("disabled")) {
-        setNotifValues({
-          ...notifValues,
-          [id]: "",
-        });
-      }
-    } catch (e) {
-      console.error("Notify toggle failed:", e);
+    // Parse backend response
+    let message = "";
+    let status = "";
+    let numValues = 0;
+    if (Array.isArray(res.data) && res.data[0]?.stringValue) {
+      const parsed = JSON.parse(res.data[0].stringValue);
+      message   = (parsed.message ?? "").toLowerCase();
+      status    = parsed.status ?? "";
+      numValues = Number(parsed.number_of_values ?? 0);
     }
-  };
+
+    // Store meta so GraphConfig can read correct UUID + #values
+    // setCharValues({
+    //   ...charValues,
+    //   [cid]: { name: charName, numberOfValues: numValues, uuid }, // include uuid explicitly
+    // });
+    setCharValues({
+      ...charValues,
+      [cid]: { name: charName, numberOfValues: numValues, uuid, mac, path },
+    });
+
+    if (status === "success" && message.includes("enabled")) {
+      setNotifications({ ...notifications, [cid]: true });
+      if (!selectedChars.includes(cid)) {
+        setSelectedChars([...selectedChars, cid]);
+      }
+      // (optional) demo pulse
+      setNotifValues({ ...notifValues, [cid]: "🟢 Value at " + new Date().toLocaleTimeString() });
+    } else if (status === "success" && message.includes("disabled")) {
+      setNotifications({ ...notifications, [cid]: false });
+      setNotifValues({ ...notifValues, [cid]: "" });
+    }
+
+  } catch (e) {
+    console.error("Notify toggle failed:", e);
+  }
+};
+
+
+  // const handleNotifyToggle = async (mac: string, 
+  //                                   path: string,
+  //                                   uuid: string,
+  //                                   charName: string) => {
+  //   const id = `${mac}_${charName}_${path}_${uuid}`;
+  //   console.log("Toggling notify for:", id);
+  //   const next = !notifications[id];
+
+  //   try {
+  //     const res = await axios.post(`${BASE_URL}/api/ble/notify`, {
+  //       mac,
+  //       path,
+  //       uuid,
+  //       charName,
+  //       enable: next,
+  //     });
+  //        // Parse the backend response
+  //     let message = "";
+  //     let status = "";
+  //     let numValues = 0;
+  //     if (Array.isArray(res.data) && res.data[0]?.stringValue) {
+  //       const parsed = JSON.parse(res.data[0].stringValue);
+  //       message = parsed.message?.toLowerCase();
+  //       status = parsed.status;
+  //       numValues = parsed.number_of_values || 0;
+  //     }
+  //     setCharValues({
+  //       ...charValues,
+  //       [id]: { name: charName, numberOfValues: numValues, uuid }, // <— add uuid
+  //     });
+  //      // Save characteristic name and number of values
+  //     // setCharValues({
+  //     //   ...charValues,
+  //     //   [id]: { name: charName, numberOfValues: numValues },
+  //     // });
+  //     console.log("check charValues:", charValues);
+
+  //     // Update notifications state based on parsed message
+  //     if (status === "success" && message.includes("enabled")) {
+  //       setNotifications({ ...notifications, [id]: true });
+  //     } else if (status === "success" && message.includes("disabled")) {
+  //       setNotifications({ ...notifications, [id]: false });
+  //     }
+
+  //     console.log("/api/ble/notify API response:", res.data);
+
+  //     if (status === "success" && message.includes("enabled")) {
+  //       setSelectedChars(
+  //         selectedChars.includes(id)
+  //           ? selectedChars
+  //           : [...selectedChars, id]
+  //       );
+  //       console.log("Notifications enabled for:", id);
+  //       const interval = setInterval(() => {
+  //         setNotifValues({
+  //           ...notifValues,
+  //           [id]: "🟢 Value at " + new Date().toLocaleTimeString(),
+  //         });
+  //       }, 1000);
+  //       } else if (status === "success" && message.includes("disabled")) {
+  //       setNotifValues({
+  //         ...notifValues,
+  //         [id]: "",
+  //       });
+  //     }
+  //   } catch (e) {
+  //     console.error("Notify toggle failed:", e);
+  //   }
+  // };
 
   const handleRead = async (mac: string, 
                             path: string,
@@ -270,7 +333,7 @@ export const BLEConfig: React.FC = () => {
 
   const enableSelectedNotify = async () => {
     for (const cid of selectedChars) {
-      const [mac, path, uuid] = cid.split("-");
+      const [mac, path, uuid] = cid.split("|");
       await handleNotifyToggle(mac, path, uuid, charValues[cid]?.name || uuid);
     }
   };
@@ -375,7 +438,7 @@ export const BLEConfig: React.FC = () => {
                     <p className="text-sm text-muted-foreground">UUID: {srv.uuid}</p>
 
                     {srv.characteristics.map((char) => {
-                      const cid = `${dev.mac}-${char.path}-${char.uuid}`;
+                      const cid = `${dev.mac}|${char.path}|${char.uuid}`;
                       const checked = selectedChars.includes(cid);
 
                       return (
