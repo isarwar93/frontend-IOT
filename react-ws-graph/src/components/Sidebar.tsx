@@ -8,7 +8,6 @@ import { useUIStore } from "../store/useUIStore"; // adjust path
 // import { useFpsStore } from "@/store/useFpsStore";
 
 
-
 export const Sidebar: React.FC = () => {
   const [expanded, setExpanded] = useState(true);
   const showFps = useUIStore((s) => s.showFps);
@@ -27,11 +26,11 @@ export const Sidebar: React.FC = () => {
     <div className={`h-screen border-r border-border bg-background text-foreground transition-all duration-300 flex flex-col ${expanded ? "w-64" : "w-20"}`}>
       {/* Top: Title + Collapse */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-        {expanded && <h1 className="text-xl font-bold">My App</h1>}
+        {expanded && <h1 className="text-xl font-bold">Fitness App</h1>}
         <button
             onClick={() => setExpanded(!expanded)}
             className="p-2 rounded-lg transition-colors bg-transparent hover:bg-muted"
-          >
+        >
             <ChevronLeft
               className={`
                 h-5 w-5 transition-transform

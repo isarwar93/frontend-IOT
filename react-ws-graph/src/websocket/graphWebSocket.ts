@@ -1,6 +1,6 @@
 
 
-// src/hooks/useWebSockets.ts
+// src/websocket/graphWebSockets.ts
 import { useEffect, useRef } from "react";
 import { GraphData } from "../../types";
 
@@ -24,7 +24,6 @@ const WS_BASE = toWsBase(RAW_BASE);
 
 interface Props {
   mac: string;
-  uuid: string;
   onGraphData: (data: GraphData) => void;
   onConnect?: () => void;
   onDisconnect?: () => void;
@@ -37,7 +36,6 @@ interface Props {
  */
 export const useWebSockets = ({
   mac,
-  uuid,
   onGraphData,
   onConnect,
   onDisconnect,
@@ -64,12 +62,8 @@ export const useWebSockets = ({
       console.warn("WebSocket not connected: mac is empty");
       return;
     }
-    if (!uuid?.trim()) {
-      console.warn("WebSocket not connected: uuid is empty");
-      return;
-    }
 
-    const url = `${WS_BASE}/ws/ble/graph/mac=${encodeURIComponent(mac)}/uuid=${encodeURIComponent(uuid)}`;
+    const url = `${WS_BASE}/ws/ble/graph/mac=${encodeURIComponent(mac)}}`;
 
     const ws = new WebSocket(url);
     wsRef.current = ws;
@@ -82,6 +76,7 @@ export const useWebSockets = ({
     ws.onmessage = (e) => {
       if (pausedRef.current) return;
       try {
+        console.log("Graph BLE WebSocket message:", e.data);
         const msg = JSON.parse(e.data);
         const data: GraphData = {
           timestamp: formatTimestamp(msg.timestamp),
@@ -94,6 +89,7 @@ export const useWebSockets = ({
     };
 
     ws.onclose = () => {
+      console.log("WebSocket disconnected");
       onDisconnect?.();
       wsRef.current = null;
     };
@@ -106,7 +102,7 @@ export const useWebSockets = ({
       ws.close();
       wsRef.current = null;
     };
-  }, [mac, uuid]);
+  }, [mac]);
 
   const sendMessage = (msg: string) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {

@@ -29,7 +29,7 @@ export const FpsCounter: React.FC = () => {
   }, []);
 
   return (
-    <div className="fixed bottom-4 right-6 text-xs text-gray-400">
+    <div className="fixed bottom-2 right-10 text-xs text-gray-400">
       FPS: <span className="font-mono">{fps}</span>
     </div>
   );

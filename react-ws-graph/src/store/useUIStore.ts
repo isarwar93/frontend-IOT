@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 
-type Tab = 'graphEngine' |'video' |'analysis'|'graph' | 'chat';
+type Tab = 'medical'|'graphEngine' |'video' |'analysis'|'graph' | 'chat';
 type Section = 'dashboard' | 'settings' | 'config';
 type ProtocolTab = 'ble' | 'mqtt' | 'usb';
 
@@ -77,6 +77,12 @@ interface UIState {
   username: string;
   setUsername: (name: string) => void;
 
+  isLoggedIn: boolean;
+  setIsLoggedIn: (state: boolean) => void;
+
+  topBarExpanded: boolean;
+  setTopBarExpanded: (state: boolean) => void;
+
   protocolTab: ProtocolTab;
   setProtocolTab: (tab: ProtocolTab) => void;
 
@@ -106,7 +112,7 @@ export const useUIStore = create<UIState>((set) => ({
   bufferSize: 100,
   setBufferSize: (val) => set({ bufferSize: val }),
 
-  activeTab: 'graphEngine',
+  activeTab: 'medical',
   setActiveTab: (tab) => set({ activeTab: tab }),
 
   activeSection: 'dashboard',
@@ -154,8 +160,14 @@ export const useUIStore = create<UIState>((set) => ({
     })),
 
 
-    username: "",
-    setUsername: (name) => set({ username: name }),
+  isLoggedIn: false,
+  setIsLoggedIn: (state) => set({ isLoggedIn: state }),
+
+  topBarExpanded: true,
+  setTopBarExpanded: (state) => set({ topBarExpanded: state }),
+
+  username: "",
+  setUsername: (name) => set({ username: name }),
 
   protocolTab: 'ble',
   setProtocolTab: (tab: ProtocolTab) => set({ protocolTab: tab }),

@@ -88,10 +88,10 @@ export default function StreamControlBar() {
       }
 
       // Save/refresh char meta (name + value count)
-      setCharValues({
-        ...charValues,
-        [id]: { name: charName || charValues[id]?.name || uuid, numberOfValues },
-      });
+      // setCharValues({
+      //   ...charValues,
+      //   [id]: { name: charName || charValues[id]?.name || uuid, numberOfValues },
+      // });
 
       if (status === "success" && message.includes("enabled")) {
         setNotifications({ ...notifications, [id]: true });

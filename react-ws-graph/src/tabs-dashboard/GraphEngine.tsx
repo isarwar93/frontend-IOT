@@ -1,4 +1,4 @@
-// src/components/GraphEngine.tsx
+// src/tabs-dashboard/GraphEngine.tsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip,

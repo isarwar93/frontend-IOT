@@ -159,21 +159,6 @@ export const useGraphStore = create<GraphStore>()(
         setBufferSize: (n) =>
           set({ bufferSize: Math.max(10, Math.min(50000, Math.floor(n))) }),
 
-        // `row` is series values keyed by line.label; we add timestamp automatically
-        // pushData: (configId, row) => {
-        //   const ts = Date.now();
-        //   const entry: GraphRow = { timestamp: ts, ...row };
-        //   const { data, bufferSize } = get();
-        //   const existing = data[configId] ?? [];
-        //   const next =
-        //     existing.length >= bufferSize
-        //       ? [...existing.slice(existing.length - bufferSize + 1), entry]
-        //       : [...existing, entry];
-        //   set({ data: { ...data, [configId]: next } });
-        // },
-
-
-
         // Keep the impl the same, but typed to GraphRow:
         pushData: (id, row) => set((s) => {
           const prev = s.data[id] ?? [];

@@ -11,37 +11,37 @@ import { SettingsPage } from './pages/Settings';
 import TopBar from './components/TopBar';
 import LoginPage from './pages/LoginPage';
 import GraphConfigPage from './pages/GraphConfig';
-import { useLocation } from 'react-router-dom';
-import { useEffect, useRef } from 'react';
+import { useRef } from 'react';
+import { useUIStore } from './store/useUIStore';
 
 export default function App() {
     const [username, setUsername] = useState('');
     const [nickname, setNickname] = useState('');
-    const [isLoggedIn, setIsLoggedIn] = useState(false);
+    // const [isLoggedIn, setIsLoggedIn] = useState(false);
 
 
     // TODO: Implement save scroll position later
     // For now just reset to bottom on route change
     const mainRef = useRef<HTMLDivElement>(null);
-    const location = useLocation();
+    // const location = useLocation();
 
-    // Scroll to bottom on tab (route) change
-    useEffect(() => {
-        if (mainRef.current) {
-            mainRef.current.scrollTop = mainRef.current.scrollHeight;
-        }
-    }, [location]);
+    // // Scroll to bottom on tab (route) change
+    // useEffect(() => {
+    //     if (mainRef.current) {
+    //         mainRef.current.scrollTop = mainRef.current.scrollHeight;
+    //     }
+    // }, [location]);
     
     const handleLoginSuccess = (username: string, nickname: string) => {
         setUsername(username);
         setNickname(nickname);
-        setIsLoggedIn(true);
+        //setIsLoggedIn(true);
+        useUIStore.getState().setIsLoggedIn(true);
     };
 
-    if (!isLoggedIn) {
+    if (!useUIStore((s) => s.isLoggedIn)) {
         return <LoginPage onLoginSuccess={handleLoginSuccess} />;
     }
-
 
     return (
       <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground transition-colors duration-300">

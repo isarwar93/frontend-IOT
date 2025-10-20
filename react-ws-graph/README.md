@@ -37,6 +37,11 @@ npm install html2canvas
 npm install react-heatmap-grid
 
 npm install axios  -> (for HTTP requests)
+
+npx sb init -> story book
+
+# npm install react-konva konva --save
+npm install --save react-apexcharts apexcharts
 ```
 
 
