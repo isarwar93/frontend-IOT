@@ -318,11 +318,11 @@ const scheduleFlush = () => {
       <MedTopBar />
       <div
        ref={containerRef}
-       className={`rounded-b-md rounded-t-md p-1 border flex flex-wrap`}
-       style={{ width: "100%", height: "550px" }}
+       className={`rounded-t-md p-1 flex flex-wrap`}
+       style={{ width: "100%", height: "540px" }}
       >
       <div
-        className="rounded-b-md rounded-t-md p-1 border gap-2"
+        className=" rounded-tl-md p-1 border gap-0.5 border-b-0 border-r-0"
         style={{width:"70%",height:"400px"}}  
       >
         <FastLineCanvas  
@@ -362,7 +362,7 @@ const scheduleFlush = () => {
         />
       </div>
        <div
-        className="rounded-b-md rounded-t-md p-1 border gap-2"
+        className="rounded-tr-md border border-b-0"
         style={{width:"30%",height:"400px"}}  
 
 
@@ -370,15 +370,9 @@ const scheduleFlush = () => {
 
        <div
        // we want to it start again from next line 
-       className="rounded-b-md rounded-t-md rounded-t-md p-1 border"
+       className="rounded-b-md border"
        style={{width:"100%",height:"140px"}}
-      >
-
-      {/* </div>
-        className="rounded-b-md rounded-t-md p-1 border gap-2 flex break line"
-        style={{width:"100%",height:"200px"}}   */}
-
-        
+      > 
       </div>
 
 
