@@ -11,8 +11,6 @@ type Props = {
   head?: number;
   len?: number;
 
-  // Simulation mode / control
-  simulate?: boolean;
   numSeries?: number;        // how many waveforms to simulate / draw
   sampleInterval?: number;   // ms between samples when simulating
   cap?: number;              // buffer capacity
@@ -27,21 +25,18 @@ type Props = {
   //  explicit theme override: "dark" | "light" | undefined (auto)
   theme?: "dark" | "light";
   graphTitle?:string;
-  graphUnit?:string;
-  graphValue?:string;
 };
 
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 
-const DEFAULT_COLORS_DARK = ["#60A5FA", "#34D399", "#F87171", "#A78BFA", "#FBBF24", "#06B6D4"];
-const DEFAULT_COLORS_LIGHT = ["#2563EB", "#059669", "#DC2626", "#7C3AED", "#B45309", "#0891B2"];
+const DEFAULT_COLORS_DARK = ["#60A5FA", "#fcf8f0ff", "#F87171", "#A78BFA", "#FBBF24", "#06B6D4"];
+const DEFAULT_COLORS_LIGHT = ["#2563EB", "#292723ff", "#DC2626", "#7C3AED", "#B45309", "#0891B2"];
 
 export default function FastLineCanvas({
   times: extTimes,
   valuesList: extValuesList,
   head: extHead,
   len: extLen,
-  simulate = true,
   numSeries = 1,
   sampleInterval = 200,
   cap = 4096,
@@ -51,9 +46,7 @@ export default function FastLineCanvas({
   maxPoints = 2000,
   lineColors:extLineColors,
   theme,
-  graphTitle,
-  graphUnit,
-  graphValue
+  graphTitle
 }: Props) {
 
   // refs and state
@@ -191,45 +184,6 @@ export default function FastLineCanvas({
     }
   }, [cap, extTimes, extValuesList, numSeries]);
 
-  // simulation: only when simulate && no external buffers
-  useEffect(() => {
-    if (!simulate) return;
-    if (extTimes || extValuesList) return; // don't override external buffers
-
-    const localCap = capRef.current;
-    const values = valuesRefList.current;
-    const times = timesRef.current;
-    let sampleIdx = headRef.current;
-
-    const pushSample = () => {
-      sampleIdx = (sampleIdx + 1) % localCap;
-      headRef.current = sampleIdx;
-      const t = performance.now(); // use high resolution for internal timing (won't cause integer overflow)
-      times[sampleIdx] = t;
-
-      for (let s = 0; s < values.length; s++) {
-        // stable simulated waveform using sine + small random noise
-        const phase = (t / 1000) * (0.5 + s * 0.2);
-        const amplitude = 20 + s * 8;
-        const base = 50 + Math.sin(phase) * amplitude;
-        const noise = (Math.random() - 0.5) * (6 + s * 3);
-        values[s][sampleIdx] = base + noise;
-      }
-      lenRef.current = Math.min(lenRef.current + 1, localCap);
-    };
-
-    // push initial chunk so the plot doesn't start empty
-    const warm = Math.min(8, Math.floor(1000 / Math.max(1, sampleInterval)));
-    for (let i = 0; i < warm; i++) pushSample();
-
-    simTimerRef.current = window.setInterval(pushSample, Math.max(8, sampleInterval));
-    return () => {
-      if (simTimerRef.current) {
-        window.clearInterval(simTimerRef.current);
-        simTimerRef.current = null;
-      }
-    };
-  }, [simulate, sampleInterval, extTimes, extValuesList, numSeries]);
 
   // main draw loop
   useEffect(() => {
@@ -245,8 +199,8 @@ export default function FastLineCanvas({
     // set canvas pixel size once per effect
     canvas.width = Math.floor(targetW * dpr);
     canvas.height = Math.floor(targetH * dpr);
-    canvas.style.width = `${targetW}px`;
-    canvas.style.height = `${targetH}px`;
+    // canvas.style.width = `${targetW}px`;
+    // canvas.style.height = `${targetH}px`;
     // reset transform to device pixels then work in CSS pixels
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
@@ -421,66 +375,21 @@ export default function FastLineCanvas({
   // render container and canvas
   return (
       <div ref={containerRef}
-       className={`rounded-b-md rounded-t-md border flex flex-row ${backgroundClassName}`}
-       style={{width:"100%", position:"relative"}}
+       className={`border-t-0 border-l-0 border relative rounded-tl`}
+       style={{width:"100%", position:"relative", height: "33.3%"}}
        >
-      <canvas
-      //making it responsive
-      style={{  borderRadius: 5}}
-      // ResizeObserver to track container size changes
-      ref={(node) => {
-        canvasRef.current = node;
-        if (!node) return;
-        const ro = new ResizeObserver((entries) => {
-          for (let entry of entries) {
-            // We want to set size of canvas based on parent element size
-            // not the size of parent's content box (which is what ResizeObserver gives us)
-            const canvasHandle = entry.target as HTMLCanvasElement;
-            if (!canvasHandle.parentElement) return;
-            const pw = canvasHandle.parentElement.clientWidth;
-            const ph = canvasHandle.parentElement.clientHeight;
-            setSize({ width: pw*0.75, height: ph*0.32 }); 
-          }
-        });
-        ro.observe(node.parentElement!);
-        
-      }}  
-      />
 
-      <div className="font-mono font-semibold flex flex-col items-end"
-            style={{color: extLineColors && extLineColors.length>0 ? extLineColors[0] : isDark ? DEFAULT_COLORS_DARK[0] : DEFAULT_COLORS_LIGHT[0]}}
-            >
+      <div className="font-mono font-semibold absolute top-0 left-0"
+        style={{color: isDark ? DEFAULT_COLORS_DARK[1] : DEFAULT_COLORS_LIGHT[1]}}
+        >
       {graphTitle ?? "Title"}
       </div>
-       <div 
-       ref={bigNumRef}
-       className="font-mono font-semibold text-5xl"
-       style={{fontFamily: "monospace", fontWeight: "100",
-              position: "absolute",
-              bottom: 30,
-              right: 0,
-              fontSize:`${bigFontSize}px`,
-              lineHeight: 1,
-              paddingRight: 1,
-              color: extLineColors && extLineColors.length>0 ? extLineColors[0] : isDark ? DEFAULT_COLORS_DARK[0] : DEFAULT_COLORS_LIGHT[0]
+      <canvas
+        style={{  borderRadius: 5 ,width: "100%", height: "100%"}}
+        ref ={canvasRef}
+      />
 
-       }}
-      >
-      {graphValue ?? "0"}
-      </div>
-
-       <div className="font-semibold"
-      style={
-        {
-          position: "absolute",
-          bottom: 4,
-          right: 8,
-          fontSize: 14,
-          fontFamily: "monospace",
-          color: extLineColors && extLineColors.length>0 ? extLineColors[0] : isDark ? DEFAULT_COLORS_DARK[0] : DEFAULT_COLORS_LIGHT[0]}}
-      >
-      {graphUnit ?? "Unit"}
-      </div>
+     
       </div>
       
   );

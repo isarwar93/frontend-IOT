@@ -23,13 +23,13 @@ export const Sidebar: React.FC = () => {
   ];
 
   return (
-    <div className={`h-screen border-r border-border bg-background text-foreground transition-all duration-300 flex flex-col ${expanded ? "w-64" : "w-20"}`}>
+    <div className={`h-screen border-r border-border bg-background text-foreground transition-all duration-300 flex flex-col ${expanded ? "w-64" : "w-14"}`}>
       {/* Top: Title + Collapse */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+      <div className="flex items-center justify-between px-3 py-3 border-b border-border">
         {expanded && <h1 className="text-xl font-bold">Fitness App</h1>}
         <button
             onClick={() => setExpanded(!expanded)}
-            className="p-2 rounded-lg transition-colors bg-transparent hover:bg-muted"
+            className="p-1 rounded-lg transition-colors bg-transparent hover:bg-muted"
         >
             <ChevronLeft
               className={`
@@ -42,7 +42,7 @@ export const Sidebar: React.FC = () => {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-2 py-4 space-y-1">
+      <nav className="flex-1 px-1 py-4 space-y-1">
         {items.map(({ name, icon, path }) => (
           <NavLink
             key={name}
@@ -60,14 +60,14 @@ export const Sidebar: React.FC = () => {
       </nav>
 
       {/* Bottom: Version + FPS */}
-          <div className="px-4 py-3 border-t border-border text-sm text-muted-foreground">
+          <div className="px-1 py-1 border-t border-border text-sm text-muted-foreground">
             {expanded ? (
               <div className="flex justify-between">
                <div>v1.0.0</div>
                {showFps && <FpsCounter />}
               </div>
             ) : (
-              <div className="p-4 border-t border-border text-sm text-muted-foreground flex justify-between items-center">
+              <div className="p-1  text-sm text-muted-foreground flex justify-between items-center">
                <div>v1.0.0</div>
                {showFps && <FpsCounter />}
               </div>

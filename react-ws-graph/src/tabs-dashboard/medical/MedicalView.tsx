@@ -1,15 +1,12 @@
 // src/tabs-dashboard/medical/Medical.tsx
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import {
-  LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip,
-  CartesianGrid, Legend, ResponsiveContainer,
-} from "recharts";
+import React, { use, useEffect, useMemo, useRef, useState } from "react";
 import { useTheme } from "next-themes";
 import { useGraphStore } from "@/store/useGraphStore";
 import { useBLEStore } from "@/store/useBLEStore";
 import MedTopBar  from "./MedTopBar";
 
 import FastLineCanvas from "./FastLineCanvas";
+import BigInfos from "./BigInfos";
 import { connectWebSocket, disconnectWebSocket } from "./MedWebSocket";
 import { useLiveSeries } from "./useLiveSeries";
 import {WS_BASE, WSKey } from "./MedComm";
@@ -272,17 +269,6 @@ const scheduleFlush = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // --- Layout helpers (avoid dynamic Tailwind class names) ---
-  const gridColsClass = useMemo(() => {
-    const cols = Math.max(1, Math.min(4, numGraphs || configs.length || 1));
-    const map: Record<number, string> = {
-      1: "md:grid-cols-1",
-      2: "md:grid-cols-2",
-      3: "md:grid-cols-3",
-      4: "md:grid-cols-4",
-    };
-    return `grid grid-cols-1 ${map[cols]} gap-4`;
-  }, [numGraphs, configs.length]);
 
   // To create simulated value for graphValues
   const valueSimulate = () => {
@@ -299,16 +285,60 @@ const scheduleFlush = () => {
     return () => clearInterval(interval);
   }, []);  
 
+  // Make simulated data for graphs
+  const capRef = useRef(containerRef.current ? Math.ceil((containerRef.current.clientWidth ?? 800) / 2) : 4096);
 
+  // const timesRef = useRef<number[]>(new Array(containerRef).fill(0));
+  const headRef = useRef(0);
+  const lenRef = useRef(0);
+ 
 
-  // const values = useMemo(() => {
-  //   const values: number[] = [];
-  //   for (let i = 0; i < 300; i++) {
-  //     values.push(valueSimulate());
-  //   } 
-  //   return values;
-  // }
+  // extValuesList should be an array of Float32Array, we want to simulate it here
+  const extValuesList: number[][] = [
+    new Array(capRef.current).fill(0),
+    new Array(capRef.current).fill(0),
+    new Array(capRef.current).fill(0),
+  ];  
 
+  // let extValuesList = Float32Array[];
+  const sampleInterval = 100;
+  const numSeries = 3; 
+
+  const [dataSim, setData] = useState<Float32Array>(new Float32Array(capRef.current));
+   const [timeSim, setTimeData] = useState<Float64Array>(new Float64Array(capRef.current));
+  
+  // Simulated data pusher  
+  const updateSimulatedData = () => {
+    const localCap = capRef.current;
+    const values = extValuesList;
+    let sampleIdx = headRef.current;
+
+    sampleIdx = (sampleIdx + 1) % localCap;
+    headRef.current = sampleIdx;
+    const t = performance.now(); // use high resolution for internal timing (won't cause integer overflow)
+    times[sampleIdx] = t;
+
+    for (let s = 0; s < values.length; s++) {
+      // stable simulated waveform using sine + small random noise
+      const phase = (t / 1000) * (0.5 + s * 0.2);
+      const amplitude = 20 + s * 8;
+      const base = 50 + Math.sin(phase) * amplitude;
+      const noise = (Math.random() - 0.5) * (6 + s * 3);
+      values[s][sampleIdx] = base + noise;
+      setData(new Float32Array(values[0]));
+      setTimeData(new Float64Array(times));
+    }
+    lenRef.current = Math.min(lenRef.current + 1, localCap);
+  };
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      updateSimulatedData();
+    }, Math.max(8, sampleInterval));
+    return () => clearInterval(interval);
+  }, [sampleInterval]);
+
+  const times = useRef<number[]>(new Array(capRef.current).fill(0)).current;
   // --- Axis helpers ---
   const yDomain: [number | "auto", number | "auto"] = axis.fixed
     ? [axis.min, axis.max]
@@ -318,55 +348,77 @@ const scheduleFlush = () => {
       <MedTopBar />
       <div
        ref={containerRef}
-       className={`rounded-t-md p-1 flex flex-wrap`}
+       className={`rounded-t-md p-0 flex flex-wrap`}
        style={{ width: "100%", height: "540px" }}
       >
       <div
-        className=" rounded-tl-md p-1 border gap-0.5 border-b-0 border-r-0"
+        className=" rounded-tl-md p-0 border border-b-0 border-r-0"
         style={{width:"70%",height:"400px"}}  
       >
         <FastLineCanvas  
                         theme={useTheme().theme==="dark"?"dark":"light"}
-                        simulate 
+                        valuesList={dataSim ? [dataSim] : undefined}
+                        //times={timeSim}
+                        head={headRef.current}
+                        len={lenRef.current}
                         numSeries={1}
                         cap={4096}
                         sampleInterval={100}
                         maxPoints={300}
                         lineColors={["#afa22bff"]}
                         graphTitle="ECG"
-                        graphUnit="bpm"
-                        graphValue={simulatedValue[0]}
         />
         
         <FastLineCanvas theme={useTheme().theme==="dark"?"dark":"light"}
-                        simulate 
+        valuesList={dataSim ? [dataSim] : undefined}
+         head={headRef.current}
+                        len={lenRef.current}
                         numSeries={1}
                         cap={4096}
                         sampleInterval={100}
                         maxPoints={300}
                         lineColors={["#2faf2bff"]}
                         graphTitle="Pulse"
-                        graphUnit="bpm"
-                        graphValue={simulatedValue[1]}
         />
         <FastLineCanvas theme={useTheme().theme==="dark"?"dark":"light"}
-                        simulate 
+        // we want to shift the data by 1 to simulate different data
+        valuesList={dataSim ? [dataSim] : undefined}
+         head={headRef.current}
+                        len={lenRef.current}
                         numSeries={1}
                         cap={4096}
                         sampleInterval={100}
                         maxPoints={300}
                         lineColors={["#2bafafff"]}
                         graphTitle="Resp"
-                        graphUnit="bpm"
-                        graphValue={simulatedValue[2]}
         />
       </div>
        <div
         className="rounded-tr-md border border-b-0"
         style={{width:"30%",height:"400px"}}  
+      >
+        <BigInfos
+                        lineColors={["#c9c621ff"]}
+                        graphTitle="Resp"
+                        graphUnit="bpm"
+                        graphValue={simulatedValue[0]}
+        />
+        <BigInfos 
+                        lineColors={["#2b4aafff"]}
+                        graphTitle="Resp"
+                        graphUnit="bpm"
+                        graphValue={simulatedValue[1]}
+        />
+
+        <BigInfos 
+                        lineColors={["#af2b74ff"]}
+                        graphTitle="Resp"
+                        graphUnit="bpm"
+                        graphValue={simulatedValue[2]}
+        />
 
 
-      ></div>
+      </div>
 
        <div
        // we want to it start again from next line 
