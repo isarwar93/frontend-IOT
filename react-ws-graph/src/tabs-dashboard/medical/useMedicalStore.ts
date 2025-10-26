@@ -1,4 +1,33 @@
-import { create } from "zustand";
+import { create} from "zustand";
+
+
+
+type ChannelBuffer = {
+  name: string;
+  buffer: Float32Array;
+  head: number;
+};
+
+type DataStore = {
+  channels: ChannelBuffer[];
+  setChannels: (chs: ChannelBuffer[]) => void;
+  updateHead: (name: string, newHead: number) => void;
+};
+
+export const useDataStore = create<DataStore>((set) => ({
+  channels: [],
+  setChannels: (chs) => set({ channels: chs }),
+  updateHead: (name, newHead) =>
+    set((state) => ({
+      channels: state.channels.map((c) =>
+        c.name === name ? { ...c, head: newHead } : c
+      ),
+    })),
+}));
+
+
+
+
 
 export type BlePhase =
   | "disconnecting"

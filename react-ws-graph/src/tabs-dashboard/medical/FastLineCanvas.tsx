@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useTheme } from "next-themes";
 
 type Props = {
   // External single shared time buffer (optional). If omitted and simulate=true, component will simulate data.
@@ -22,8 +23,6 @@ type Props = {
   backgroundClassName?: string;
   maxPoints?: number;
   lineColors?: string[];
-  //  explicit theme override: "dark" | "light" | undefined (auto)
-  theme?: "dark" | "light";
   graphTitle?:string;
 };
 
@@ -38,122 +37,29 @@ export default function FastLineCanvas({
   head: extHead,
   len: extLen,
   numSeries = 1,
-  sampleInterval = 200,
   cap = 4096,
   width = 800,
   height = 300,
   backgroundClassName = "bg-neutral-900",
   maxPoints = 2000,
   lineColors:extLineColors,
-  theme,
   graphTitle
 }: Props) {
+  const { theme } = useTheme();
+  const [ isDark, setIsDark ] = useState<boolean>();
+
+  useEffect(()=>{
+    if (theme === "dark") setIsDark(true);
+    else setIsDark(false);
+  },[theme]);
 
   // refs and state
   const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const rafRef = useRef<number | null>(null);
-  const simTimerRef = useRef<number | null>(null);
-  const bigNumRef = useRef<HTMLDivElement | null>(null);
 
   // dynamic size (responsive)
   const [size, setSize] = useState<{ width: number; height: number }>(() => ({ width, height }));
-
-  // theme detection (prefers-color-scheme) if not overridden by prop
-  const [isDark, setIsDark] = useState<boolean>(() => {
-    if (theme === "dark") return true;
-    if (theme === "light") return false;
-    return typeof window !== "undefined" ? window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches : true;
-  });
-
-  const [bigFontSize, setBigFontSize] = useState<number>(48);
- 
-  const measureCanvasRef = useRef<HTMLCanvasElement | null>(null);
-  const lastMeasureRef = useRef<{ w: number; h: number; text: string }>({ w: 0, h: 0, text: "" });
-  // ResizeObserver in canvas ref setter already updates size.
-  // Compute a suitable font size for the right-hand big number whenever layout changes.
- useEffect(() => {
-   if (!measureCanvasRef.current) measureCanvasRef.current = document.createElement("canvas");
-    const computeFontSize = () => {
-      const parent = containerRef.current;
-      const canvas = canvasRef.current;
-      const numEl = bigNumRef.current;
-      if (!parent || !canvas || !numEl) return;
-
-      // available width on the right (space between canvas and parent right edge)
-      const parentW = parent.clientWidth;
-      const canvasW = canvas.getBoundingClientRect().width;
-      const padding = 40; // safe padding
-      const availW = Math.max(24, parentW - canvasW - padding);
-      const availH = Math.max(24, parent.clientHeight - 16);
-
-      const text = (numEl.textContent || "0");
-
-      // skip if nothing changed 
-      const last = lastMeasureRef.current;
-      if (last.w === availW && last.h === availH && last.text === text) return;
-      lastMeasureRef.current = { w: availW, h: availH, text };
-
-
-      // measure text width using offscreen canvas, binary-search font size
-      const off = document.createElement("canvas");
-      const ctx = off.getContext("2d")!;
-
-      let lo = 8;
-      let hi = Math.min(Math.floor(availH), Math.floor(availW)); // upper bound
-      let best = lo;
-      while (lo <= hi) {
-        const mid = Math.floor((lo + hi) / 2);
-        ctx.font = `${mid}px monospace`;
-        const w = ctx.measureText(text).width;
-        if (w <= availW && mid <= availH) {
-          best = mid;
-          lo = mid + 1;
-        } else {
-          hi = mid - 1;
-        }
-      }
-
-      // apply caps for very large/small displays
-      const final = Math.max(12, Math.min(best, 200));
-      setBigFontSize(final);
-    };
-
-    computeFontSize();
-    // recompute on resize
-    const ro = new ResizeObserver(() => computeFontSize());
-    if (containerRef.current) ro.observe(containerRef.current);
-    if (canvasRef.current?.parentElement) ro.observe(canvasRef.current.parentElement);
-    window.addEventListener("resize", computeFontSize);
-    return () => {
-      ro.disconnect();
-      window.removeEventListener("resize", computeFontSize);
-    };
-  }, [size.width, size.height]);
-
-  // Watch for user theme changes (only if theme prop undefined)
-  useEffect(() => {
-    if (theme) {
-      setIsDark(theme === "dark");
-      return;
-    }
-    const mq = window.matchMedia("(prefers-color-scheme: dark)");
-    const handler = (ev: MediaQueryListEvent) => setIsDark(ev.matches);
-    // modern API
-    try {
-      mq.addEventListener?.("change", handler);
-    } catch {
-      // fallback
-      mq.addListener?.(handler);
-    }
-    return () => {
-      try {
-        mq.removeEventListener?.("change", handler);
-      } catch {
-        mq.removeListener?.(handler);
-      }
-    };
-  }, [theme]);
 
   // buffer refs (internal when external not provided)
   const capRef = useRef<number>(cap);
@@ -170,19 +76,6 @@ export default function FastLineCanvas({
   useEffect(() => { if (typeof extHead === "number") headRef.current = extHead; }, [extHead]);
   useEffect(() => { if (typeof extLen === "number") lenRef.current = extLen; }, [extLen]);
   useEffect(() => { if (extLineColors) extLineColors = extLineColors; }, [extLineColors]);
-
-  // handle cap / realloc internal buffers when changed and external not used
-  useEffect(() => {
-    if (cap && cap !== capRef.current) {
-      capRef.current = cap;
-      if (!extTimes && !extValuesList) {
-        timesRef.current = new Float64Array(capRef.current);
-        valuesRefList.current = Array.from({ length: numSeries }, () => new Float32Array(capRef.current));
-        headRef.current = -1;
-        lenRef.current = 0;
-      }
-    }
-  }, [cap, extTimes, extValuesList, numSeries]);
 
 
   // main draw loop
@@ -211,7 +104,6 @@ export default function FastLineCanvas({
 
   
     let colors: string[];
-    // let colors = isDark ? DEFAULT_COLORS_DARK : DEFAULT_COLORS_LIGHT;
     // choose colors based on theme
     lineColorsRef.current=extLineColors??[];
     if (lineColorsRef.current.length>0) {
@@ -351,26 +243,7 @@ export default function FastLineCanvas({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [size.width, size.height, maxPoints, isDark, backgroundClassName]);
 
-  // cleanup on unmount (safety)
-  useEffect(() => {
-    return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      if (simTimerRef.current) {
-        window.clearInterval(simTimerRef.current);
-        simTimerRef.current = null;
-      }
-    };
-  }, []);
 
-  // when user passes explicit numSeries and we're using internal buffers, ensure valuesRefList length matches
-  useEffect(() => {
-    if (extValuesList) return;
-    const curr = valuesRefList.current;
-    if (curr.length !== numSeries) {
-      const newList = Array.from({ length: numSeries }, (_, i) => curr[i] ?? new Float32Array(capRef.current));
-      valuesRefList.current = newList;
-    }
-  }, [numSeries, extValuesList]);
 
   // render container and canvas
   return (
@@ -388,9 +261,6 @@ export default function FastLineCanvas({
         style={{  borderRadius: 5 ,width: "100%", height: "100%"}}
         ref ={canvasRef}
       />
-
-     
       </div>
-      
   );
 }

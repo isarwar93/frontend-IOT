@@ -1,4 +1,4 @@
-import { useMedicalStore } from "../../store/useMedicalStore";
+import { useMedicalStore } from "./useMedicalStore";
 // import { useBLEStore, BLEDevice } from "@/store/useBLEStore";
 
 

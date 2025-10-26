@@ -1,9 +1,76 @@
-
-
 // src/lib/websocket.ts
-// type Frame = { id:string; t: number; v: number };
+import { useMedicalStore } from "./useMedicalStore";
+
+
+import { useDataStore } from "./useMedicalStore";
+
 type Frame = { t: number; v: number };
 type Listener = () => void;
+
+
+
+
+type Channel = {
+  name: string;
+  buffer: Float32Array;
+  head: number;
+};
+
+let channels: Channel[] = [];
+let timer: NodeJS.Timeout | null = null;
+
+export function initChannels(names: string[], size = 1024) {
+  channels = names.map((name) => ({
+    name,
+    buffer: new Float32Array(size),
+    head: 0,
+  }));
+
+  // Register references in Zustand (React can read them)
+  useDataStore.getState().setChannels(channels);
+}
+
+export function addValue(name: string, value: number) {
+  const ch = channels.find((c) => c.name === name);
+  if (!ch) return;
+
+  const idx = ch.head % ch.buffer.length;
+  ch.buffer[idx] = value;
+  ch.head++;
+
+  useDataStore.getState().updateHead(name, ch.head);
+}
+
+export function startTimer(interval = 50) {
+  console.log("Timer starting...");
+  if (timer) return;
+  console.log("channels.length ..:",channels.length);
+  if (channels.length === 0)
+    initChannels(["sensorA", "sensorB", "sensorC"], 4096);
+
+  timer = setInterval(() => {
+    const t = Date.now() / 1000;
+// console.log("ading values ....");
+    addValue("sensorA", Math.sin(t));
+    addValue("sensorB", Math.cos(t));
+    addValue("sensorC", Math.sin(t * 0.5) + Math.random() * 0.1);
+  }, interval);
+}
+
+export function stopTimer() {
+  if (timer) {
+    clearInterval(timer);
+    timer = null;
+  }
+}
+
+export function getSnapshot(name: string): Float32Array | null {
+  const ch = channels.find((c) => c.name === name);
+  return ch ? ch.buffer.slice(0, Math.min(ch.head, ch.buffer.length)) : null;
+}
+
+
+
 
 class LiveBuffer {
   private cap: number;

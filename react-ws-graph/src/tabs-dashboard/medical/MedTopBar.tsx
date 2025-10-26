@@ -4,7 +4,7 @@ import axios from "axios";
 import { Button } from "@/components/ui/Button";
 import { BLEDevice,GattService,useBLEStore } from "@/store/useBLEStore";
 import { medDisconnect,medReconnect,graphStart,graphStop } from "./MedComm";
-import { useMedicalStore } from "@/store/useMedicalStore";
+import { useMedicalStore } from "@/tabs-dashboard/medical/useMedicalStore";
 
 
 
