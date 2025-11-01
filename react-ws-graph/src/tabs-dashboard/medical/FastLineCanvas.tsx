@@ -9,8 +9,8 @@ type Props = {
   valuesList?: Float32Array[]; // one Float32Array per series
 
   // head/len can be provided for external buffers (single head/len used for all series)
-  head?: number;
-  len?: number;
+  currentHead?: number;
+  currentLen?: number;
 
   numSeries?: number;        // how many waveforms to simulate / draw
   sampleInterval?: number;   // ms between samples when simulating
@@ -21,7 +21,7 @@ type Props = {
   width?: number;
   height?: number;
   backgroundClassName?: string;
-  maxPoints?: number;
+  xAxisDataPoints?: number;
   lineColors?: string[];
   graphTitle?:string;
 };
@@ -34,27 +34,25 @@ const DEFAULT_COLORS_LIGHT = ["#2563EB", "#292723ff", "#DC2626", "#7C3AED", "#B4
 export default function FastLineCanvas({
   times: extTimes,
   valuesList: extValuesList,
-  head: extHead,
-  len: extLen,
+  currentHead: extHead,
   numSeries = 1,
   cap = 4096,
   width = 800,
   height = 300,
-  backgroundClassName = "bg-neutral-900",
-  maxPoints = 2000,
+  xAxisDataPoints = 2000,
   lineColors:extLineColors,
   graphTitle
 }: Props) {
   const { theme } = useTheme();
   const [ isDark, setIsDark ] = useState<boolean>();
-
   useEffect(()=>{
     if (theme === "dark") setIsDark(true);
     else setIsDark(false);
   },[theme]);
 
+
   // refs and state
-  const containerRef = useRef<HTMLDivElement | null>(null);
+  // const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const rafRef = useRef<number | null>(null);
 
@@ -68,18 +66,19 @@ export default function FastLineCanvas({
     extValuesList ?? Array.from({ length: numSeries }, () => new Float32Array(capRef.current))
   );
   const headRef = useRef<number>(typeof extHead === "number" ? extHead : -1);
-  const lenRef = useRef<number>(typeof extLen === "number" ? extLen : 0);
   const lineColorsRef = useRef<string[]>(extLineColors ?? []);
   // sync external props when they change
   useEffect(() => { if (extTimes) timesRef.current = extTimes; }, [extTimes]);
   useEffect(() => { if (extValuesList) valuesRefList.current = extValuesList; }, [extValuesList]);
   useEffect(() => { if (typeof extHead === "number") headRef.current = extHead; }, [extHead]);
-  useEffect(() => { if (typeof extLen === "number") lenRef.current = extLen; }, [extLen]);
   useEffect(() => { if (extLineColors) extLineColors = extLineColors; }, [extLineColors]);
 
 
+
+
+  let running = true;
   // main draw loop
-  useEffect(() => {
+  function canvasAnimate() {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d", { alpha: false });
@@ -92,13 +91,11 @@ export default function FastLineCanvas({
     // set canvas pixel size once per effect
     canvas.width = Math.floor(targetW * dpr);
     canvas.height = Math.floor(targetH * dpr);
-    // canvas.style.width = `${targetW}px`;
-    // canvas.style.height = `${targetH}px`;
     // reset transform to device pixels then work in CSS pixels
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     // visual parameters
-    const drawPadding = 6; // px padding from edges
+    const drawPadding = 1; // px padding from edges
     const innerW = targetW - drawPadding * 2;
     const innerH = targetH - drawPadding * 2;
 
@@ -116,138 +113,141 @@ export default function FastLineCanvas({
     const gridColor = isDark ? "#263238" : "#4e6696ff";
     const bgColor = isDark ? "#0b1220" : "#7186a1ff";
 
-    let running = true;
+    if (!running) return;
 
-    const drawOnce = () => {
-      if (!running) return;
+    const localTimes = timesRef.current;
+    const localValuesList = valuesRefList.current;
+    const numOftotalSeries = localValuesList.length;
+    const head = headRef.current;
+    const localCap = capRef.current;
+    const xAxisDataPointsToShow = Math.min(xAxisDataPoints, localCap);
 
-      const localTimes = timesRef.current;
-      const localValuesList = valuesRefList.current;
-      const head = headRef.current;
-      const len = lenRef.current;
-      const localCap = capRef.current;
-
-      // n = how many points to draw (cap at maxPoints)
-      const n = Math.min(len, maxPoints);
-      if (n <= 1 || head < 0) {
-        // clear to background
-        ctx.fillStyle = bgColor;
-        ctx.fillRect(0, 0, targetW, targetH);
-        rafRef.current = requestAnimationFrame(drawOnce);
-        return;
-      }
-
-      // compute start index (oldest point)
-      const start = (head - (n - 1) + localCap) % localCap;
-
-      // autoscale across all series with a decimated scan for performance
-      let min = Infinity, max = -Infinity;
-      const step = Math.max(1, Math.floor(n / 1200)); // scan at most ~1200 points
-      for (let i = 0, idx = start; i < n; i += step, idx = (idx + step) % localCap) {
-        for (let s = 0; s < localValuesList.length; s++) {
-          const v = localValuesList[s][idx];
-          if (!Number.isFinite(v)) continue;
-          if (v < min) min = v;
-          if (v > max) max = v;
-        }
-      }
-      if (!Number.isFinite(min) || !Number.isFinite(max) || min === max) {
-        // fallback range
-        min = isFinite(min) ? min - 1 : -1;
-        max = min + 2;
-      }
-
-      // If we have valid timestamps, compute X by time; otherwise use index spacing (stable spacing for simulated data).
-      let useTime = true;
-      const tStart = localTimes[start];
-      const tEnd = localTimes[(start + n - 1) % localCap];
-      if (!Number.isFinite(tStart) || !Number.isFinite(tEnd) || tEnd <= tStart) useTime = false;
-
-      // Clear background
+    if (xAxisDataPointsToShow <= 1 || head < 0) {
+      //clear to background
       ctx.fillStyle = bgColor;
       ctx.fillRect(0, 0, targetW, targetH);
+      rafRef.current = requestAnimationFrame(canvasAnimate);
+      return;
+    }
+    const start = (head - xAxisDataPointsToShow)%xAxisDataPointsToShow;
+    // autoscale across all series with a decimated scan for performance
+    let min = Infinity, max = -Infinity;
+    const step = Math.max(1, Math.floor(xAxisDataPointsToShow / 1200)); // scan at most ~1200 points
+    
+    // To find min and max
+    for (let s = 0; s < numOftotalSeries; s++) {
+      let idx = start;
+      for (let i = 0; i < xAxisDataPointsToShow; i += step) {
+        idx = (idx + step) % xAxisDataPointsToShow
+        const v = localValuesList[s][idx];
+        if (!Number.isFinite(v)) continue;
+        if (v < min) min = v;
+        if (v > max) max = v;
+      }
+    }
+    if (!Number.isFinite(min) || !Number.isFinite(max) || min === max) {
+      // fallback range
+      min = isFinite(min) ? min - 1 : -1;
+      max = min + 2;
+    }
 
-      // draw grid (lightweight)
-      ctx.save();
-      ctx.translate(drawPadding, drawPadding);
-      ctx.globalAlpha = 0.22;
-      ctx.lineWidth = 1;
+    // If we have valid timestamps, compute X by time; otherwise use index spacing (stable spacing for simulated data).
+    let useTime = true;
+    const tStart = localTimes[start];
+    const tEnd = localTimes[(start + xAxisDataPointsToShow- 1) % localCap];
+    if (!Number.isFinite(tStart) || !Number.isFinite(tEnd) || tEnd <= tStart) useTime = false;
+
+    // Clear background
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(0, 0, targetW, targetH);
+
+    // draw grid (lightweight)
+    ctx.save();
+    ctx.translate(drawPadding, drawPadding);
+    ctx.globalAlpha = 0.55;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    //--- Grid lines ---
+    // TODO: make it variable
+    const gxCount = 10;
+    const gyCount = 3;
+    for (let gx = 0; gx <= gxCount; gx++) {
+      const x = (gx / gxCount) * innerW;
+      ctx.moveTo(Math.round(x) + 0.5, 0);
+      ctx.lineTo(Math.round(x) + 0.5, innerH);
+    }
+    for (let gy = 0; gy <= gyCount; gy++) {
+      const y = (gy / gyCount) * innerH;
+      ctx.moveTo(0, Math.round(y) + 0.5);
+      ctx.lineTo(innerW, Math.round(y) + 0.5);
+    }
+
+    ctx.strokeStyle = gridColor;
+    ctx.stroke();
+    ctx.restore();
+    ctx.globalAlpha = 1;
+      //----------
+
+    // draw each series
+    for (let s = 0; s < localValuesList.length; s++) {
+      const vals = localValuesList[s];
+      const color = colors[s % colors.length];
+      ctx.lineWidth = 1.6 + (s === 0 ? 0.6 : 0);
+      ctx.lineJoin = "round";
+      ctx.lineCap = "round";
+      ctx.strokeStyle = color;
       ctx.beginPath();
-      const gxCount = 8;
-      const gyCount = 4;
-      for (let gx = 0; gx <= gxCount; gx++) {
-        const x = (gx / gxCount) * innerW;
-        ctx.moveTo(Math.round(x) + 0.5, 0);
-        ctx.lineTo(Math.round(x) + 0.5, innerH);
-      }
-      for (let gy = 0; gy <= gyCount; gy++) {
-        const y = (gy / gyCount) * innerH;
-        ctx.moveTo(0, Math.round(y) + 0.5);
-        ctx.lineTo(innerW, Math.round(y) + 0.5);
-      }
-      ctx.strokeStyle = gridColor;
-      ctx.stroke();
-      ctx.restore();
-      ctx.globalAlpha = 1;
 
-      // draw each series
-      for (let s = 0; s < localValuesList.length; s++) {
-        const vals = localValuesList[s];
-        const color = colors[s % colors.length];
-        ctx.lineWidth = 1.6 + (s === 0 ? 0.6 : 0);
-        ctx.lineJoin = "round";
-        ctx.lineCap = "round";
-        ctx.strokeStyle = color;
-        ctx.beginPath();
+      // compute X step if using index-based spacing (stable) — this avoids jitter when timestamps have small jitter
+      const indexSpacing = innerW / Math.max(1, xAxisDataPointsToShow- 1);
+      let idx = start;
+      for (let i = 0;  i < xAxisDataPointsToShow; i++) {
+        idx = (idx + 1) % xAxisDataPointsToShow;
+        const v = vals[idx];
+        const vy = (v - min) / (max - min);
+        const y = drawPadding + clamp(1 - vy, 0, 1) * innerH;
 
-        // compute X step if using index-based spacing (stable) — this avoids jitter when timestamps have small jitter
-        const indexSpacing = innerW / Math.max(1, n - 1);
-
-        for (let i = 0, idx = start; i < n; i++, idx = (idx + 1) % localCap) {
-          const v = vals[idx];
-          const vy = (v - min) / (max - min);
-          const y = drawPadding + clamp(1 - vy, 0, 1) * innerH;
-
-          let x;
-          if (useTime) {
-            // time-based x (keeps true time scaling when external times are provided)
-            const tx = (localTimes[idx] - tStart) / (tEnd - tStart);
-            x = drawPadding + clamp(tx, 0, 1) * innerW;
-          } else {
-            // stable index-based spacing
-            x = drawPadding + i * indexSpacing;
-          }
-
-          // snap to half pixel for crisp stable lines and to reduce trembling
-          const sx = Math.round(x) + 0.5;
-          const sy = Math.round(y) + 0.5;
-
-          if (i === 0) ctx.moveTo(sx, sy);
-          else ctx.lineTo(sx, sy);
+        let x;
+        if (useTime) {
+          // time-based x (keeps true time scaling when external times are provided)
+          const tx = (localTimes[idx] - tStart) / (tEnd - tStart);
+          x = drawPadding + clamp(tx, 0, 1) * innerW;
+        } else {
+          // stable index-based spacing
+          x = drawPadding + i * indexSpacing;
         }
-        ctx.stroke();
+
+        // snap to half pixel for crisp stable lines and to reduce trembling
+        const sx = Math.round(x) + 0.05;
+        const sy = Math.round(y) + 0.05;
+        // const sx = Math.round(x) + 0.5;
+        // const sy = Math.round(y) + 0.5;
+
+        if (i === 0) ctx.moveTo(sx, sy);
+        else ctx.lineTo(sx, sy);
       }
-      rafRef.current = requestAnimationFrame(drawOnce);
-    };
+      ctx.stroke();
+    }
+    running = true;
+  }
 
-    rafRef.current = requestAnimationFrame(drawOnce);
+  useEffect(() => {
+      rafRef.current = requestAnimationFrame(canvasAnimate);
 
-    return () => {
-      running = false;
-      if (rafRef.current) {
-        cancelAnimationFrame(rafRef.current);
-        rafRef.current = null;
+      return () => {
+        running = false;
+        if (rafRef.current) {
+          cancelAnimationFrame(rafRef.current);
+          rafRef.current = null;
+        }
       }
-    };
-    // NOTE: we intentionally omit references to changing refs inside deps so the same loop continues to read refs
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [size.width, size.height, maxPoints, isDark, backgroundClassName]);
-
+    }, [extValuesList,isDark]); // Make sure the effect only when external values changes
 
 
   // render container and canvas
   return (
-      <div ref={containerRef}
+      <div 
+      // ref={containerRef}
        className={`border-t-0 border-l-0 border relative rounded-tl`}
        style={{width:"100%", position:"relative", height: "33.3%"}}
        >

@@ -1,7 +1,7 @@
 import { create} from "zustand";
 
 
-
+// --- For websocket data ----
 type ChannelBuffer = {
   name: string;
   buffer: Float32Array;
@@ -28,7 +28,7 @@ export const useDataStore = create<DataStore>((set) => ({
 
 
 
-
+// --- For top bar connection related ----
 export type BlePhase =
   | "disconnecting"
   | "disconnected" 

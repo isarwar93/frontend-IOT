@@ -8,8 +8,6 @@ type Frame = { t: number; v: number };
 type Listener = () => void;
 
 
-
-
 type Channel = {
   name: string;
   buffer: Float32Array;
@@ -40,16 +38,17 @@ export function addValue(name: string, value: number) {
 
   useDataStore.getState().updateHead(name, ch.head);
 }
-
-export function startTimer(interval = 50) {
-  console.log("Timer starting...");
+//To simulate values independant of time
+let simulationCounter = 0;
+export function startTimer(interval = 5000) {
   if (timer) return;
-  console.log("channels.length ..:",channels.length);
   if (channels.length === 0)
-    initChannels(["sensorA", "sensorB", "sensorC"], 4096);
+    initChannels(["sensorA", "sensorB", "sensorC"], 496);
 
   timer = setInterval(() => {
     const t = Date.now() / 1000;
+    // const t = simulationCounter;
+    // simulationCounter++;
 // console.log("ading values ....");
     addValue("sensorA", Math.sin(t));
     addValue("sensorB", Math.cos(t));

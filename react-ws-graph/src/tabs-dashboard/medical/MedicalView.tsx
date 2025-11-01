@@ -8,7 +8,7 @@ import FastLineCanvas from "./FastLineCanvas";
 import BigInfos from "./BigInfos";
 import { connectWebSocket, disconnectWebSocket, startTimer, stopTimer  } from "./MedWebSocket";
 import { useDataStore } from "./useMedicalStore";
-import { useLiveSeries } from "./useLiveSeries";
+// import { useLiveSeries } from "./useLiveSeries";
 import {WS_BASE, WSKey } from "./MedComm";
 import { useMedicalStore } from "./useMedicalStore";
 
@@ -86,14 +86,18 @@ export const Medical: React.FC = () => {
   // const { times, values, head, len, cap } = useLiveSeries();
 
  const channels = useDataStore((s) => s.channels);
+
+  const sampleInterval = 80;
+  const numSeries = 3; 
+
   
-  const dataSimulateRef2 = useRef<Float32Array[]>([]);
-  const headRef2 = useRef(0);
-  const lenRef2 = useRef(0);
+  const dataSimulateRef = useRef<Float32Array[]>([]);
+  const headRef = useRef(0);
+  const lenRef = useRef(0);
   useEffect(() => {
-    startTimer(20);
+    startTimer(sampleInterval);
     return () => stopTimer();
-  }, []);
+  }, []);// run one time only
 
 
   // To create simulated value for graphValues
@@ -113,10 +117,6 @@ export const Medical: React.FC = () => {
 
   // Make simulated data for graphs
   const capRef = useRef(containerRef.current ? Math.ceil((containerRef.current.clientWidth ?? 800) / 2) : 4096);
-const dataSimulateRef = useRef<Float32Array[]>([]);
-  // const timesRef = useRef<number[]>(new Array(containerRef).fill(0));
-  const headRef = useRef(0);
-  const lenRef = useRef(0);
  
 
   // extValuesList should be an array of Float32Array, we want to simulate it here
@@ -126,67 +126,24 @@ const dataSimulateRef = useRef<Float32Array[]>([]);
     new Array(capRef.current).fill(0),
   ];  
 
-  const sampleInterval = 50;
-  const numSeries = 3; 
-
 
   // const [dataSim, setData] = useState<Float32Array>(new Float32Array(capRef.current));
    const [timeSim, setTimeData] = useState<Float64Array>(new Float64Array(capRef.current));
   
-  // Simulated data pusher  
-  const updateSimulatedData = () => {
-    const localCap = capRef.current;
-    const values = extValuesList;
-    let sampleIdx = headRef.current;
 
-    sampleIdx = (sampleIdx + 1) % localCap;
-    headRef.current = sampleIdx;
-    const t = performance.now(); // use high resolution for internal timing (won't cause integer overflow)
-    times[sampleIdx] = t;
-
-    for (let s = 0; s < values.length; s++) {
-      // stable simulated waveform using sine + small random noise
-      const phase = (t / 1000) * (0.5 + s * 0.2);
-      const amplitude = 20 + s * 8;
-      let base = 50 + Math.sin(phase) * amplitude;
-      let noise = (Math.random() - 0.5) * (6 + s * 3);
-      if (s === 2) {
-        noise = 0;
-        // base = 0;
+  useEffect(() => {
+      const id = requestAnimationFrame(() => {
+      const allBuffers = channels.map(ch => ch.buffer);
+      lenRef.current = channels.map((ch => ch.buffer.length))[0];
+      headRef.current =  channels.map((ch => ch.head))[0]-1
+      //console.log("lenRef2.current : ",lenRef2.current );
+      for (let s = 0; s < allBuffers.length; s++) {
+        dataSimulateRef.current[s] = new Float32Array(allBuffers[s]);
       }
-      values[s][sampleIdx] = base + noise;
-      dataSimulateRef.current[s] = new Float32Array(values[s]);
-      // setData(new Float32Array(values[0]));
-      setTimeData(new Float64Array(times));
-    }
-    // console.log("dataSimulateRef",dataSimulateRef.current[0]);
-    lenRef.current = Math.min(lenRef.current + 1, localCap);
+    });
+    return () => cancelAnimationFrame(id);
+  }, [channels]);
 
-
-// console.log("data current[0]:",dataCurrent[0]);
-  };
-
-  useEffect(() => {
-  const id = requestAnimationFrame(() => {
-    const allBuffers = channels.map(ch => ch.buffer);
-    lenRef2.current = channels.map((ch => ch.buffer.length))[0];
-    headRef2.current =  channels.map((ch => ch.head))[0]-1
-    console.log("channels.map((ch => ch.head))",channels.map((ch => ch.head))[0]);
-    // console.log("allbuffers: ",allBuffers);
-    for (let s = 0; s < allBuffers.length; s++) {
-       dataSimulateRef2.current[s] = new Float32Array(allBuffers[s]);
-}
-  });
-  return () => cancelAnimationFrame(id);
-}, [channels]);
-
-  
-  useEffect(() => {
-    const interval = setInterval(() => {
-      updateSimulatedData();
-    }, Math.max(20, sampleInterval));
-    return () => clearInterval(interval);
-  }, [sampleInterval]);
 
   const times = useRef<number[]>(new Array(capRef.current).fill(0)).current;
   // --- Axis helpers ---
@@ -206,53 +163,41 @@ const dataSimulateRef = useRef<Float32Array[]>([]);
         style={{width:"70%",height:"400px"}}  
       >
         <FastLineCanvas  
-                        //valuesList={dataSimulateRef.current.length===3 ? [dataSimulateRef.current[0]] : undefined}
-                      // valuesList={channels.map((ch)=>([ch.buffer][0]))}
-                        //  valuesList={dataSimulateRef2.current.slice(-2)}
-                        valuesList={[dataSimulateRef2.current[0]]}
-                       // valuesList={dataSimulateRef2.current.length===3 ? [dataSimulateRef2.current[0]] : undefined}
-                        //times={timeSim}
-                       //head={channels.map((ch)=>(ch.head))[0]}
-                        //len={channels.map((ch)=>(ch.buffer.length))[0]}
-                        head={headRef2.current}
-                        len={lenRef2.current}
+                        valuesList={[dataSimulateRef.current[0]]}
+                        currentHead={headRef.current}
+                        xAxisDataPoints={lenRef.current}
                         numSeries={1}
                         cap={4096}
-                        maxPoints={800}
                         lineColors={["#afa22bff"]}
                         graphTitle="ECG"
         />
         
         <FastLineCanvas 
-                        valuesList={dataSimulateRef.current.length===3 ? [dataSimulateRef.current[1]] : undefined}
-                        head={headRef.current}
-                        len={lenRef.current}
+                        valuesList={[dataSimulateRef.current[1]]}
+                        currentHead={headRef.current}
+                        xAxisDataPoints={lenRef.current}
                         numSeries={1}
                         cap={4096}
-                        maxPoints={300}
                         lineColors={["#2faf2bff"]}
                         graphTitle="Pulse"
         />
         <FastLineCanvas 
-        // we want to shift the data by 1 to simulate different data
-        //valuesList={dataSim ? [dataSim] : undefined}
-        valuesList={dataSimulateRef.current.length===3 ? [dataSimulateRef.current[2]] : undefined}
-         head={headRef.current}
-                        len={lenRef.current}
+                        valuesList={[dataSimulateRef.current[2]]}
+                        currentHead={headRef.current}
+                        xAxisDataPoints={lenRef.current}
                         numSeries={1}
                         cap={4096}
-                        maxPoints={800}
-                        lineColors={["#2bafafff"]}
+                        lineColors={["#ca4821ff"]}
                         graphTitle="Resp"
         />
-      </div>
+      </div> 
        <div
         className="rounded-tr-md border border-b-0"
         style={{width:"30%",height:"400px"}}  
       >
         <BigInfos
                         Colors={["#c9c621ff"]}
-                        Title1="ACG"
+                        Title1="AVG"
                         Unit1="mV"
                         Value1={simulatedValue[0]}
                         Title2="MAX"
