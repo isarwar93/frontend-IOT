@@ -47,13 +47,18 @@ export function startTimer(interval = 5000) {
 
   timer = setInterval(() => {
     const t = Date.now() / 1000;
-    // const t = simulationCounter;
-    // simulationCounter++;
-// console.log("ading values ....");
     addValue("sensorA", Math.sin(t));
-    addValue("sensorB", Math.cos(t));
-    addValue("sensorC", Math.sin(t * 0.5) + Math.random() * 0.1);
   }, interval);
+
+  timer = setInterval(() => {
+    const t = Date.now() / 1000;
+    addValue("sensorB", Math.cos(t));
+  }, interval+50);
+
+  timer = setInterval(() => {
+    const t = Date.now() / 1000;
+    addValue("sensorC", Math.sin(t * 0.5) + Math.random() * 0.1);
+  }, interval + 500);
 }
 
 export function stopTimer() {

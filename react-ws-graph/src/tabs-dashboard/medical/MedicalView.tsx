@@ -92,8 +92,8 @@ export const Medical: React.FC = () => {
 
   
   const dataSimulateRef = useRef<Float32Array[]>([]);
-  const headRef = useRef(0);
-  const lenRef = useRef(0);
+  const headRef = useRef<number[]>([]);
+  const lenRef = useRef<number[]>([]);
   useEffect(() => {
     startTimer(sampleInterval);
     return () => stopTimer();
@@ -134,11 +134,12 @@ export const Medical: React.FC = () => {
   useEffect(() => {
       const id = requestAnimationFrame(() => {
       const allBuffers = channels.map(ch => ch.buffer);
-      lenRef.current = channels.map((ch => ch.buffer.length))[0];
-      headRef.current =  channels.map((ch => ch.head))[0]-1
+
       //console.log("lenRef2.current : ",lenRef2.current );
       for (let s = 0; s < allBuffers.length; s++) {
         dataSimulateRef.current[s] = new Float32Array(allBuffers[s]);
+        lenRef.current[s] = channels.map((ch => ch.buffer.length))[s];
+        headRef.current[s] =  channels.map((ch => ch.head))[s]-1
       }
     });
     return () => cancelAnimationFrame(id);
@@ -164,8 +165,8 @@ export const Medical: React.FC = () => {
       >
         <FastLineCanvas  
                         valuesList={[dataSimulateRef.current[0]]}
-                        currentHead={headRef.current}
-                        xAxisDataPoints={lenRef.current}
+                        currentHead={headRef.current[0]}
+                        xAxisDataPoints={lenRef.current[0]}
                         numSeries={1}
                         cap={4096}
                         lineColors={["#afa22bff"]}
@@ -174,8 +175,8 @@ export const Medical: React.FC = () => {
         
         <FastLineCanvas 
                         valuesList={[dataSimulateRef.current[1]]}
-                        currentHead={headRef.current}
-                        xAxisDataPoints={lenRef.current}
+                        currentHead={headRef.current[1]}
+                        xAxisDataPoints={lenRef.current[1]}
                         numSeries={1}
                         cap={4096}
                         lineColors={["#2faf2bff"]}
@@ -183,8 +184,8 @@ export const Medical: React.FC = () => {
         />
         <FastLineCanvas 
                         valuesList={[dataSimulateRef.current[2]]}
-                        currentHead={headRef.current}
-                        xAxisDataPoints={lenRef.current}
+                        currentHead={headRef.current[2]}
+                        xAxisDataPoints={lenRef.current[2]}
                         numSeries={1}
                         cap={4096}
                         lineColors={["#ca4821ff"]}
