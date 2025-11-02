@@ -6,7 +6,6 @@ import { DashboardPage } from './pages/Dashboard';
 import { SensorConfigPage } from './pages/SensorConfig';
 import { LayoutConfigPage} from './pages/LayoutConfig'; 
 import { ProtocolConfigPage }  from './pages/ProtocolConfig'; 
-import { ConfigPage } from './pages/GeneralConfig';
 import { SettingsPage } from './pages/Settings';
 import TopBar from './components/TopBar';
 import LoginPage from './pages/LoginPage';
@@ -55,7 +54,6 @@ export default function App() {
                 <Route path="/layout-config" element={<LayoutConfigPage />} />
                 <Route path="/protocol-config" element={<ProtocolConfigPage />} />
                 <Route path="/graph-config" element={<GraphConfigPage />} />
-                <Route path="/configuration" element={<ConfigPage />} />
                 <Route path="/settings" element={<SettingsPage />} />
             </Routes>
         </main>

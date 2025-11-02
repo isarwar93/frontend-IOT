@@ -3,7 +3,7 @@ import { useEffect, useRef } from "react";
 import { GraphData } from "../types";
 import { useUIStore } from "@/store/useUIStore";
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL_WS;  // Change to your backend's IP/Port
+const BASE_URL = import.meta.env.VITE_API_BASE_URL_WS;
 
 interface Props {
   nickname: string;

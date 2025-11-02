@@ -8,7 +8,6 @@ export const HTTP_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
 //TODO: Later Medical config, to set MAC address and characteristics to monitor
 const MAC=import.meta.env.VITE_API_BASE_MAC|| "";
-const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
 async function apiGet<T = unknown>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${HTTP_BASE}${path}`, {

@@ -1,6 +1,6 @@
 // src/views/ChatView.tsx
 import React, { useEffect, useRef, useState } from "react";
-import { useWebSockets } from "../../hooks/useWebSockets";
+import { useWebSockets } from "../hooks/useWebSockets";
 import { useUIStore } from "@/store/useUIStore";
 
 interface Props {

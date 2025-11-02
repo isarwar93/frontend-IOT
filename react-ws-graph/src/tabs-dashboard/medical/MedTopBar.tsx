@@ -1,11 +1,10 @@
-// src/components/StreamControlBar.tsx
-import React, { useEffect, useMemo, useState } from "react";
-import axios from "axios";
+import {useState } from "react";
 import { Button } from "@/components/ui/Button";
-import { BLEDevice,GattService,useBLEStore } from "@/store/useBLEStore";
+import { BLEDevice,useBLEStore } from "@/store/useBLEStore";
 import { medDisconnect,medReconnect,graphStart,graphStop } from "./MedComm";
+import { connectWebSocket, disconnectWebSocket } from "./MedWebSocket";
 import { useMedicalStore } from "@/tabs-dashboard/medical/useMedicalStore";
-
+import { useUIStore } from "@/store/useUIStore";
 
 
 export default function MedTopBar() {
@@ -13,18 +12,14 @@ export default function MedTopBar() {
     // Full BLE state (shared with BLEConfig)
     bleDevices, setBleDevices,
     connectedDevices, setConnectedDevices,
-    gattMap, setGattMap,
     connectionStatus, setConnectionStatus,
-    notifications, setNotifications,
-    notifValues, setNotifValues,
-    charValues, setCharValues,
-    selectedChars, setSelectedChars,
   } = useBLEStore();
-
+  const [webSocketConnected, setWebSocketConnected] = useState(false);
+  const simulationState = useUIStore((s) => s.simulation);
   const { blePhase, graphPhase} = useMedicalStore();
   const [bleConnected, setBleConnected] = useState(false);
   const [graphRunning, setGraphRunning] = useState(false);
-  // let mac = bleDevices?.[0]?.mac;
+
   let mac = connectedDevices?.[0]?.mac
 
   // --- Reconnect current device (disconnect + connect + fetch services) ---
@@ -83,6 +78,21 @@ export default function MedTopBar() {
     setGraphRunning(false);
   };
 
+  const startSimulation = async() => {
+    const g = await connectWebSocket();
+    if (g.toString().startsWith("error")) {
+      return;
+    }
+    setWebSocketConnected(true);
+  };
+  const stopSimulation = async() => {
+    const g = await disconnectWebSocket();
+    if (g!) {
+      return;
+    }
+    setWebSocketConnected(false);
+  };
+
   return (
     <div className="flex flex-col gap-1 rounded-md border p-1 bg-background">
       {/* Top row: device + graph + reconnect */}
@@ -137,6 +147,19 @@ export default function MedTopBar() {
             </Button>
           )):(null)
         }
+        {simulationState?(webSocketConnected? (
+            <Button 
+              variant="outline" onClick={stopSimulation} size="sm">
+              Stop Simulation
+            </Button>
+          ):(
+            <Button 
+              variant="secondary" onClick={startSimulation} size="sm">
+              Start Simulation
+            </Button>
+          )):(null)
+        }
+
         </div>
       </div>
     </div>

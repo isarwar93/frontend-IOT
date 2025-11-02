@@ -1,26 +1,34 @@
-import React, { useState } from "react";
+import React, { useEffect,useState } from "react";
 import { NavLink } from "react-router-dom";
-// import { Link } from 'react-router-dom';
-import { ChevronLeft} from "lucide-react";
+import { ChevronLeft,Home,Heart,Grid, Globe,PieChart,Settings, UserCog} from "lucide-react";
 import {FpsCounter} from "./FpsCounter";
-import { useUIStore } from "../store/useUIStore"; // adjust path
+import { useUIStore } from "../store/useUIStore";
+import { useTheme } from "next-themes";
 
-// import { useFpsStore } from "@/store/useFpsStore";
-
+const DEFAULT_COLORS_DARK = ["#60A5FA", "#fcf8f0ff", "#F87171", "#A78BFA", "#FBBF24", "#06B6D4"];
+const DEFAULT_COLORS_LIGHT = ["#2563EB", "#292723ff", "#DC2626", "#7C3AED", "#B45309", "#0891B2"];
 
 export const Sidebar: React.FC = () => {
   const [expanded, setExpanded] = useState(true);
   const showFps = useUIStore((s) => s.showFps);
 
+  const { theme } = useTheme();
+  const [ isDark, setIsDark ] = useState<boolean>();
+  useEffect(()=>{
+    if (theme === "dark") setIsDark(true);
+    else setIsDark(false);
+  },[theme]);
+
   const items = [
-    { name: "Dashboard", icon: "🏠", path: "/dashboard" },
-    { name: "Sensor Config", icon: "🔌", path: "/sensor-config" },
-    { name: "Layout Config", icon: "🧱", path: "/layout-config" },
-    { name: "Protocol Config", icon: "📡", path: "/protocol-config" },
-    { name: "Graph Config", icon: "📊", path: "/graph-config" }, 
-    { name: "General Config", icon: "⚙️", path: "/configuration" },
-    { name: "Settings", icon: "🧩", path: "/settings" },
+    { name: "Dashboard", icon: <Home/>, path: "/dashboard" },
+    { name: "Sensor Config", icon: <Heart/>, path: "/sensor-config" },
+    { name: "Layout Config", icon: <Grid/>, path: "/layout-config" },
+    { name: "Protocol Config", icon: <Globe/>, path: "/protocol-config" },
+    { name: "Graph Config", icon: <PieChart/>, path: "/graph-config" }, 
+    { name: "Settings", icon: <Settings/>, path: "/settings" },
   ];
+
+
 
   return (
     <div className={`h-screen border-r border-border bg-background text-foreground transition-all duration-300 flex flex-col ${expanded ? "w-64" : "w-14"}`}>
@@ -29,7 +37,7 @@ export const Sidebar: React.FC = () => {
         {expanded && <h1 className="text-xl font-bold">Fitness App</h1>}
         <button
             onClick={() => setExpanded(!expanded)}
-            className="p-1 rounded-lg transition-colors bg-transparent hover:bg-muted"
+            className="rounded-md transition-colors bg-transparent hover:bg-muted  px-1 py-1"
         >
             <ChevronLeft
               className={`
@@ -40,21 +48,30 @@ export const Sidebar: React.FC = () => {
             />
           </button>
       </div>
-
       {/* Navigation */}
-      <nav className="flex-1 px-1 py-4 space-y-1">
+      <nav className="flex-1 px-1 py-1 space-y-1">
         {items.map(({ name, icon, path }) => (
           <NavLink
             key={name}
             to={path}
             className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${
-                isActive ? "bg-muted text-primary font-semibold" : "hover:bg-muted"
+              `flex items-center gap-1 px-3 py-2 rounded-md transition-colors duration-200 ${
+                isActive
+                  ? isDark
+                    ? "bg-blue-700 hover:bg-blue-600 font-semibold"
+                    : "bg-blue-500 hover:bg-blue-400 font-semibold"
+                  : isDark
+                  ? "hover:bg-gray-700"
+                  : "hover:bg-gray-400"
               }`
             }
           >
-            <span className="text-xl">{icon}</span>
-            {expanded && <span className="truncate">{name}</span>}
+            <span className="text-md"
+            style={{color: isDark ? DEFAULT_COLORS_DARK[1] : DEFAULT_COLORS_LIGHT[1]}}
+            >{icon}</span>
+            {expanded && <span 
+            style={{color: isDark ? DEFAULT_COLORS_DARK[1] : DEFAULT_COLORS_LIGHT[1]}}
+            className="truncate">{name}</span>}
           </NavLink>
         ))}
       </nav>

@@ -88,6 +88,9 @@ interface UIState {
 
   mac: string;
   setMacname: (name: string) => void;
+
+  simulation: boolean;
+  setSimulation: (state: boolean) => void;
   
 }
 
@@ -174,5 +177,8 @@ export const useUIStore = create<UIState>((set) => ({
 
   mac: "",
   setMacname: (name) => set({ mac: name }),
+
+  simulation: true,
+  setSimulation: (state) => set({ simulation: state }),
 
 }));

@@ -1,8 +1,14 @@
 // src/lib/websocket.ts
-import { useMedicalStore } from "./useMedicalStore";
-
-
 import { useDataStore } from "./useMedicalStore";
+
+
+type WSKey = string; // `${mac}`
+const WS_BASE = import.meta.env.VITE_API_BASE_URL_WS ?? "";
+const HTTP_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
+
+//TODO: Later Medical config, to set MAC address and characteristics to monitor
+const MAC=import.meta.env.VITE_API_BASE_MAC|| "";
+
 
 type Frame = { t: number; v: number };
 type Listener = () => void;
@@ -15,7 +21,7 @@ type Channel = {
 };
 
 let channels: Channel[] = [];
-let timer: NodeJS.Timeout | null = null;
+let timer: (NodeJS.Timeout | null)[] = [];
 
 export function initChannels(names: string[], size = 1024) {
   channels = names.map((name) => ({
@@ -38,33 +44,36 @@ export function addValue(name: string, value: number) {
 
   useDataStore.getState().updateHead(name, ch.head);
 }
-//To simulate values independant of time
-let simulationCounter = 0;
 export function startTimer(interval = 5000) {
-  if (timer) return;
+  for(let i = 0;i<3;i++){
+    if (timer[i]) 
+      return;
+  }
   if (channels.length === 0)
-    initChannels(["sensorA", "sensorB", "sensorC"], 496);
+    initChannels(["sensorA", "sensorB", "sensorC"], 500);
 
-  timer = setInterval(() => {
+  timer[0] = setInterval(() => {
     const t = Date.now() / 1000;
     addValue("sensorA", Math.sin(t));
   }, interval);
 
-  timer = setInterval(() => {
+  timer[1] = setInterval(() => {
     const t = Date.now() / 1000;
     addValue("sensorB", Math.cos(t));
   }, interval+50);
 
-  timer = setInterval(() => {
+  timer[2] = setInterval(() => {
     const t = Date.now() / 1000;
-    addValue("sensorC", Math.sin(t * 0.5) + Math.random() * 0.1);
-  }, interval + 500);
+    addValue("sensorC", Math.sin(t * 0.5) + Math.random() * 0.9);
+  }, interval + 50);
 }
 
 export function stopTimer() {
-  if (timer) {
-    clearInterval(timer);
-    timer = null;
+  for (let i = 0;i<3;i++){
+    if (timer[i]) {
+      clearInterval(timer[i]!);
+      timer[i] = null;
+    }
   }
 }
 
@@ -146,8 +155,13 @@ const buffer = new LiveBuffer();
 
 let ws: WebSocket | null = null;
 
-export function connectWebSocket(url: string) {
+export function connectWebSocket() {
   if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return ws;
+  const key: WSKey = MAC; 
+
+  const safeMac = key.replace(/:/g, "_");
+  const url = `${WS_BASE}/ws/ble/graph/mac=${encodeURIComponent(safeMac)}`;
+  
   ws = new WebSocket(url);
   ws.onmessage = (ev) => {
     try {

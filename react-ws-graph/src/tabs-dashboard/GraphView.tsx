@@ -3,8 +3,8 @@ import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip,
   CartesianGrid, Legend, ResponsiveContainer,
 } from "recharts";
-import { GraphData } from "../../types";
-import { useWebSockets } from "../../hooks/useWebSockets";
+import { GraphData } from "../types";
+import { useWebSockets } from "../hooks/useWebSockets";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Switch } from "@/components/ui/Switch";

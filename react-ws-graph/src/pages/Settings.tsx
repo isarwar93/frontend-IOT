@@ -1,24 +1,128 @@
 import { useUIStore } from "../store/useUIStore";
 import { Switch } from "@/components/ui/Switch";
+import { ConfigLoadSaveWidget } from "../components/ConfigLoadSaveWidget";
+import { useEffect } from "react";
+import { apiPost } from "../hooks/api"
 
 export const SettingsPage = () => {
   const showFps = useUIStore((s) => s.showFps);
   const toggleFps = useUIStore((s) => s.toggleFps);
 
-  return (
-    <div className="w-full px-6 pt-6">
-      <h1 className="text-4xl font-bold mb-4">Settings</h1>
+  
+  const simulationState = useUIStore((s) => s.simulation);
+  const toggleSimulation = useUIStore((s) => s.setSimulation);
+  useEffect(() => { 
+    console.log("simulationState changed:",simulationState);
+          apiPost(`/api/settings/ble/simulate`, {
+            simulation: simulationState
+          });
+  }, [simulationState]);
 
-      <div className="space-y-4">
-        <div className="flex items-center justify-right">
-          <span className="text-sm font-medium">Show FPS Counter</span>
-          <div className="ml-auto pl-10">
+
+  return (
+  <div className=" p-6 space-y-6">  
+    <ConfigLoadSaveWidget />
+
+    <div className="flex">
+      <div className=" border p-4 rounded-md space-y-4 "
+          style={{width:"33%"}}
+      >
+        <h2 className="text-xl font-bold">General Settings</h2>
+
+        <div className="flex items-center justify-between">
+            <span> Show FPS Counter</span>
             <Switch checked={showFps} onCheckedChange={toggleFps} />
-          </div>
+        </div>
+       
+        <div className="flex items-center justify-between">
+          <span>Simulation</span>
+          <Switch checked={simulationState} onCheckedChange={toggleSimulation}
+             />
         </div>
       </div>
+
+      <GraphSettings/>
     </div>
+  </div>
   );
 };
 
-export default SettingsPage;
+
+const GraphSettings=() => {
+
+  const showGrid = useUIStore((s) => s.showGrid);
+  const toggleGrid = useUIStore((s) => s.toggleGrid);
+
+  const graphWidth = useUIStore((s) => s.graphWidth);
+  const graphHeight = useUIStore((s) => s.graphHeight);
+  const setGraphWidth = useUIStore((s) => s.setGraphWidth);
+  const setGraphHeight = useUIStore((s) => s.setGraphHeight);
+
+  return (   
+
+      <div className="border p-4 rounded-md space-y-4"
+      style={{width:"33%"}}>
+        <h2 className="text-xl font-bold">Graph Settings</h2>
+
+        <div className="flex items-center justify-between">
+          <span>Show Grid</span>
+          <Switch checked={showGrid} onCheckedChange={toggleGrid} />
+        </div>
+
+        <div className="flex items-center justify-between">
+          <span>Show Min</span>
+          <Switch checked={useUIStore((s) => s.showMin)} onCheckedChange={useUIStore.getState().toggleMin} />
+        </div>
+        <div className="flex items-center justify-between">
+          <span>Show Max</span>
+          <Switch checked={useUIStore((s) => s.showMax)} onCheckedChange={useUIStore.getState().toggleMax} />
+        </div>
+        <div className="flex items-center justify-between">
+          <span>Show Average</span>
+          <Switch checked={useUIStore((s) => s.showAvg)} onCheckedChange={useUIStore.getState().toggleAvg} />
+        </div>
+        <div className="flex items-center justify-between">
+          <span>Show Points</span>
+          <Switch checked={useUIStore((s) => s.showPoints)} onCheckedChange={useUIStore.getState().togglePoints} />
+        </div>
+            {/* Width Input */}
+            <div className="flex items-center justify-between">
+              <label className="text-base">Width (%)</label>
+              <input
+                type="number"
+                min={10}
+                max={100}
+                className="p-1 w-20 rounded border bg-muted text-foreground"
+                value={graphWidth}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  if (!isNaN(val)) setGraphWidth(val);
+                }}
+                onBlur={() => {
+                  if (graphWidth < 10) setGraphWidth(10);
+                  if (graphWidth > 100) setGraphWidth(100);}}
+              />
+            </div>
+
+            {/* Height Input */}
+            <div className="flex items-center justify-between">
+              <label className="text-base">Height (px)</label>
+              <input
+                type="number"
+                min={100}
+                max={1000}
+                className="p-1 w-20 rounded border bg-muted text-foreground"
+                value={graphHeight}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  if (!isNaN(val)) setGraphHeight(val);
+                }}
+                onBlur={() => {
+                  if (graphHeight < 100) setGraphHeight(100);
+                  if (graphHeight > 1000) setGraphHeight(1000);
+                }}
+              />
+               </div>
+      </div>
+  );
+};

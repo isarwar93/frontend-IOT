@@ -26,6 +26,9 @@ type Props = {
   graphTitle?:string;
 };
 
+let minValue = 0;
+let maxValue = 0;
+
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 
 const DEFAULT_COLORS_DARK = ["#60A5FA", "#fcf8f0ff", "#F87171", "#A78BFA", "#FBBF24", "#06B6D4"];
@@ -75,7 +78,6 @@ export default function FastLineCanvas({
 
 
 
-
   let running = true;
   // main draw loop
   function canvasAnimate() {
@@ -111,7 +113,7 @@ export default function FastLineCanvas({
     }
     
     const gridColor = isDark ? "#263238" : "#4e6696ff";
-    const bgColor = isDark ? "#0b1220" : "#7186a1ff";
+    const bgColor = isDark ? "#0b1220" : "#d1deeeff";
 
     if (!running) return;
 
@@ -130,6 +132,7 @@ export default function FastLineCanvas({
       return;
     }
     const start = (head - xAxisDataPointsToShow)%xAxisDataPointsToShow;
+    // console.log("xAxisDataPointsToShow",xAxisDataPointsToShow);
     // autoscale across all series with a decimated scan for performance
     let min = Infinity, max = -Infinity;
     const step = Math.max(1, Math.floor(xAxisDataPointsToShow / 1200)); // scan at most ~1200 points
@@ -145,6 +148,10 @@ export default function FastLineCanvas({
         if (v > max) max = v;
       }
     }
+    minValue = min;
+    minValue = Math.round(minValue*10)/10;
+    maxValue = max;
+    maxValue = Math.round(maxValue*10)/10;
     if (!Number.isFinite(min) || !Number.isFinite(max) || min === max) {
       // fallback range
       min = isFinite(min) ? min - 1 : -1;
@@ -170,7 +177,7 @@ export default function FastLineCanvas({
     //--- Grid lines ---
     // TODO: make it variable
     const gxCount = 10;
-    const gyCount = 3;
+    const gyCount = 2;
     for (let gx = 0; gx <= gxCount; gx++) {
       const x = (gx / gxCount) * innerW;
       ctx.moveTo(Math.round(x) + 0.5, 0);
@@ -247,15 +254,31 @@ export default function FastLineCanvas({
   // render container and canvas
   return (
       <div 
-      // ref={containerRef}
-       className={`border-t-0 border-l-0 border relative rounded-tl`}
+       className={`border-t-0 border-l-0 border rounded-tl relative`}
        style={{width:"100%", position:"relative", height: "33.3%"}}
        >
 
       <div className="font-mono font-semibold absolute top-0 left-0"
         style={{color: isDark ? DEFAULT_COLORS_DARK[1] : DEFAULT_COLORS_LIGHT[1]}}
         >
-      {graphTitle ?? "Title"}
+       {maxValue}
+      </div>
+      <div className="rounded font-bold absolute bottom-0 right-0 sm:text md:text-xl lg:text-1xl xl:text-2xl"
+        style={{
+          color: isDark ? DEFAULT_COLORS_DARK[1] : DEFAULT_COLORS_LIGHT[1],
+          background: isDark ? DEFAULT_COLORS_LIGHT[5] : DEFAULT_COLORS_DARK[5]
+        }}
+        >
+        {graphTitle ?? "Title"}
+</div>
+       <div className="font-mono font-semibold absolute bottom-0 left-0 "
+
+        // style={{
+        //   bottom: `0px`, left: `0px`,
+        //   color: isDark ? DEFAULT_COLORS_DARK[1] : DEFAULT_COLORS_LIGHT[1]}}
+        >
+       {minValue}
+      
       </div>
       <canvas
         style={{  borderRadius: 5 ,width: "100%", height: "100%"}}

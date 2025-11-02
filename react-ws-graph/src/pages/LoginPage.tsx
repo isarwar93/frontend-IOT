@@ -1,7 +1,7 @@
 // src/pages/LoginPage.tsx
 import React, { useState } from 'react';
 import TopBar from '../components/TopBar';
-import { login } from '../../hooks/api'; // adjust path if needed
+import { login } from '../hooks/api'; // adjust path if needed
 
 interface LoginPageProps {
   onLoginSuccess: (username: string, nickname: string) => void;
