@@ -91,6 +91,10 @@ interface UIState {
 
   simulation: boolean;
   setSimulation: (state: boolean) => void;
+
+
+  webSocketFps: number;
+  setWebSocketFps: (val: number) => void;
   
 }
 
@@ -180,5 +184,8 @@ export const useUIStore = create<UIState>((set) => ({
 
   simulation: true,
   setSimulation: (state) => set({ simulation: state }),
+
+  webSocketFps: 20,
+  setWebSocketFps: (val) => set({ webSocketFps: val }),
 
 }));

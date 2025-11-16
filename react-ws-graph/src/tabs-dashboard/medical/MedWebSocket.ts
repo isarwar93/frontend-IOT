@@ -41,26 +41,27 @@ export function addValue(name: string, value: number) {
   const idx = ch.head % ch.buffer.length;
   ch.buffer[idx] = value;
   ch.head++;
-
+  // Update Zustand store
   useDataStore.getState().updateHead(name, ch.head);
 }
+
 export function startTimer(interval = 5000) {
   for(let i = 0;i<3;i++){
     if (timer[i]) 
       return;
   }
   if (channels.length === 0)
-    initChannels(["sensorA", "sensorB", "sensorC"], 500);
+   initChannels(["sensorA", "sensorB", "sensorC"], 500);
 
   timer[0] = setInterval(() => {
     const t = Date.now() / 1000;
     addValue("sensorA", Math.sin(t));
-  }, interval);
+  }, interval+30);
 
   timer[1] = setInterval(() => {
     const t = Date.now() / 1000;
     addValue("sensorB", Math.cos(t));
-  }, interval+50);
+  }, interval);
 
   timer[2] = setInterval(() => {
     const t = Date.now() / 1000;
@@ -72,15 +73,20 @@ export function stopTimer() {
   for (let i = 0;i<3;i++){
     if (timer[i]) {
       clearInterval(timer[i]!);
+      for (const ch of channels) {
+        ch.head = 0;
+        ch.buffer.fill(0);
+        useDataStore.getState().updateHead(ch.name, ch.head);
+      }
       timer[i] = null;
     }
   }
 }
 
-export function getSnapshot(name: string): Float32Array | null {
-  const ch = channels.find((c) => c.name === name);
-  return ch ? ch.buffer.slice(0, Math.min(ch.head, ch.buffer.length)) : null;
-}
+// export function getSnapshot(name: string): Float32Array | null {
+//   const ch = channels.find((c) => c.name === name);
+//   return ch ? ch.buffer.slice(0, Math.min(ch.head, ch.buffer.length)) : null;
+// }
 
 
 
@@ -166,6 +172,7 @@ export function connectWebSocket() {
   ws.onmessage = (ev) => {
     try {
       const m = JSON.parse(typeof ev.data === "string" ? ev.data : "");
+      console.log("ws message received:",m);
       const v = Number(m?.v ?? m?.value);
       if (!Number.isFinite(v)) return;
 

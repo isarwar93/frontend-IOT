@@ -39,6 +39,8 @@ export const SettingsPage = () => {
           <Switch checked={simulationState} onCheckedChange={toggleSimulation}
              />
         </div>
+        <WebsocketFpsSettings/>
+
       </div>
 
       <GraphSettings/>
@@ -47,6 +49,38 @@ export const SettingsPage = () => {
   );
 };
 
+const WebsocketFpsSettings = () => {
+  const fps = useUIStore((s) => s.webSocketFps);
+  const setFps = useUIStore((s) => s.setWebSocketFps);
+
+  const handleFpsChange = (value: number) => {
+    if (!isNaN(value)) {
+      setFps(value);
+      // Send FPS update through API
+      apiPost('/api/settings/websocket/fps', {
+        wsfps: value
+      });
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-between">
+        <label className="text-base">Websocket FPS</label>
+        <input
+          type="number"
+          min={1}
+          max={60}
+          className="p-1 w-20 rounded border bg-muted text-foreground"
+          value={fps}
+          onChange={(e) => handleFpsChange(Number(e.target.value))}
+          onBlur={() => {
+            if (fps < 1) handleFpsChange(1);
+            if (fps > 60) handleFpsChange(60);
+          }}
+        />
+    </div>
+  );
+};
 
 const GraphSettings=() => {
 

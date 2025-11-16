@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import MedTopBar  from "./MedTopBar";
 import FastLineCanvas from "./FastLineCanvas";
 import BigInfos from "./BigInfos";
@@ -9,11 +9,11 @@ import { useDataStore } from "./useMedicalStore";
 
 export const Medical: React.FC = () => {
 
-
+  // const rafRef = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const channels = useDataStore((s) => s.channels);
 
-  const sampleInterval = 60;
+  const sampleInterval = 10;
   
   const dataSimulateRef = useRef<Float32Array[]>([]);
   const headRef = useRef<number[]>([]);
@@ -24,14 +24,38 @@ export const Medical: React.FC = () => {
   }, []);// run one time only
 
 
+  const [isTabVisible, setIsTabVisible] = useState(true);
+
+  const handleVisibilityChange = useCallback(() => {
+    setIsTabVisible(document.visibilityState === 'visible');
+  }, []);
+
+  useEffect(() => {
+    //stop the timer when tab is not active
+    if (!isTabVisible) {
+      stopTimer();
+    } else {
+      startTimer(sampleInterval);
+    }
+    },
+    [isTabVisible]);
+
+  useEffect(() => {
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
   useEffect(() => {
     const allBuffers = channels.map(ch => ch.buffer);
     for (let s = 0; s < allBuffers.length; s++) {
-      dataSimulateRef.current[s] = new Float32Array(allBuffers[s]);
+      dataSimulateRef.current[s] = allBuffers[s];
       lenRef.current[s] = channels.map((ch => ch.buffer.length))[s];
       headRef.current[s] =  channels.map((ch => ch.head))[s]-1
     }
   }, [channels]);
+
 
 
   // To create simulated value for graphValues
@@ -61,19 +85,16 @@ export const Medical: React.FC = () => {
         const showTime = date.getHours() 
         + ':' + date.getMinutes() 
         + ":" + date.getSeconds();
-        const newLines = [...prev, ` ${showTime} -> Message ${simulatedValue[0]} received`];
+        // we want to show complete data from websocket data
+        const dataSimulateRefCurrent = dataSimulateRef.current[0];
+        // we want to print whole buffer data as string
+        // const dataString = Array.from(dataSimulateRefCurrent).map(num => num.toFixed(2)).join(", ");
+        const newLines = [...prev, ` ${showTime} -> Message ${simulatedValue[0]}`  ];
         // keep only last 20 lines
         return newLines.slice(-20);
       });
 
   }, [simulatedValue]);
-
-  // Auto-scroll to bottom whenever lines change
-  useEffect(() => {
-    const el = containerRef2.current;
-    if (el) el.scrollTop = el.scrollHeight;
-  }, [lines]);
-  // ------------------------------
 
   return (
     <div className="space-y-1">
@@ -95,8 +116,7 @@ export const Medical: React.FC = () => {
                         cap={4096}
                         lineColors={["#afa22bff"]}
                         graphTitle="ECG"
-        />
-
+        /> 
         <FastLineCanvas 
                         valuesList={[dataSimulateRef.current[1]]}
                         currentHead={headRef.current[1]}
@@ -125,6 +145,7 @@ export const Medical: React.FC = () => {
                         Colors={["#c9c621ff"]}
                         Title1="AVG"
                         Unit1="mV"
+                        //Value1={headRef.current[0].toString()}
                         Value1={simulatedValue[0]}
                         Title2="MAX"
                         Unit2="mV"
@@ -223,7 +244,7 @@ export const Medical: React.FC = () => {
       </div>
       </div>
       </div>
-    </div>
+     </div>
   );
 };
 

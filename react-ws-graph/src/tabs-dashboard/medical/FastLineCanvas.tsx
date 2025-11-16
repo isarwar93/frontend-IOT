@@ -2,9 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { useTheme } from "next-themes";
 
 type Props = {
-  // External single shared time buffer (optional). If omitted and simulate=true, component will simulate data.
-  times?: Float64Array;
-
   // External per-series value buffers (optional). If omitted and simulate=true, component will simulate data.
   valuesList?: Float32Array[]; // one Float32Array per series
 
@@ -35,7 +32,6 @@ const DEFAULT_COLORS_DARK = ["#60A5FA", "#fcf8f0ff", "#F87171", "#A78BFA", "#FBB
 const DEFAULT_COLORS_LIGHT = ["#2563EB", "#292723ff", "#DC2626", "#7C3AED", "#B45309", "#0891B2"];
 
 export default function FastLineCanvas({
-  times: extTimes,
   valuesList: extValuesList,
   currentHead: extHead,
   numSeries = 1,
@@ -48,11 +44,6 @@ export default function FastLineCanvas({
 }: Props) {
   const { theme } = useTheme();
   const [ isDark, setIsDark ] = useState<boolean>();
-  useEffect(()=>{
-    if (theme === "dark") setIsDark(true);
-    else setIsDark(false);
-  },[theme]);
-
 
   // refs and state
   // const containerRef = useRef<HTMLDivElement | null>(null);
@@ -64,20 +55,10 @@ export default function FastLineCanvas({
 
   // buffer refs (internal when external not provided)
   const capRef = useRef<number>(cap);
-  const timesRef = useRef<Float64Array>(extTimes ?? new Float64Array(capRef.current));
-  const valuesRefList = useRef<Float32Array[]>(
-    extValuesList ?? Array.from({ length: numSeries }, () => new Float32Array(capRef.current))
-  );
+  const valuesRefList = useRef<Float32Array[]>([]);
   const headRef = useRef<number>(typeof extHead === "number" ? extHead : -1);
   const lineColorsRef = useRef<string[]>(extLineColors ?? []);
-  // sync external props when they change
-  useEffect(() => { if (extTimes) timesRef.current = extTimes; }, [extTimes]);
-  useEffect(() => { if (extValuesList) valuesRefList.current = extValuesList; }, [extValuesList]);
-  useEffect(() => { if (typeof extHead === "number") headRef.current = extHead; }, [extHead]);
-  useEffect(() => { if (extLineColors) extLineColors = extLineColors; }, [extLineColors]);
-
-
-
+ 
   let running = true;
   // main draw loop
   function canvasAnimate() {
@@ -85,6 +66,12 @@ export default function FastLineCanvas({
     if (!canvas) return;
     const ctx = canvas.getContext("2d", { alpha: false });
     if (!ctx) return;
+     if (theme === "dark") setIsDark(true);
+    else setIsDark(false);
+
+    // if (extTimes) timesRef.current = extTimes;
+    if (typeof extHead === "number") headRef.current = extHead;
+    if (extLineColors) extLineColors = extLineColors; 
 
     const dpr = Math.max(1, window.devicePixelRatio || 1);
     const targetW = Math.max(1, size.width);
@@ -117,7 +104,8 @@ export default function FastLineCanvas({
 
     if (!running) return;
 
-    const localTimes = timesRef.current;
+    // const localTimes = timesRef.current;
+    if (extValuesList) valuesRefList.current = extValuesList; 
     const localValuesList = valuesRefList.current;
     const numOftotalSeries = localValuesList.length;
     const head = headRef.current;
@@ -132,7 +120,6 @@ export default function FastLineCanvas({
       return;
     }
     const start = (head - xAxisDataPointsToShow)%xAxisDataPointsToShow;
-    // console.log("xAxisDataPointsToShow",xAxisDataPointsToShow);
     // autoscale across all series with a decimated scan for performance
     let min = Infinity, max = -Infinity;
     const step = Math.max(1, Math.floor(xAxisDataPointsToShow / 1200)); // scan at most ~1200 points
@@ -157,13 +144,6 @@ export default function FastLineCanvas({
       min = isFinite(min) ? min - 1 : -1;
       max = min + 2;
     }
-
-    // If we have valid timestamps, compute X by time; otherwise use index spacing (stable spacing for simulated data).
-    let useTime = true;
-    const tStart = localTimes[start];
-    const tEnd = localTimes[(start + xAxisDataPointsToShow- 1) % localCap];
-    if (!Number.isFinite(tStart) || !Number.isFinite(tEnd) || tEnd <= tStart) useTime = false;
-
     // Clear background
     ctx.fillStyle = bgColor;
     ctx.fillRect(0, 0, targetW, targetH);
@@ -198,6 +178,7 @@ export default function FastLineCanvas({
     // draw each series
     for (let s = 0; s < localValuesList.length; s++) {
       const vals = localValuesList[s];
+      // console.log("length of localValuesList[s]",vals.length);
       const color = colors[s % colors.length];
       ctx.lineWidth = 1.6 + (s === 0 ? 0.6 : 0);
       ctx.lineJoin = "round";
@@ -214,21 +195,14 @@ export default function FastLineCanvas({
         const vy = (v - min) / (max - min);
         const y = drawPadding + clamp(1 - vy, 0, 1) * innerH;
 
-        let x;
-        if (useTime) {
-          // time-based x (keeps true time scaling when external times are provided)
-          const tx = (localTimes[idx] - tStart) / (tEnd - tStart);
-          x = drawPadding + clamp(tx, 0, 1) * innerW;
-        } else {
-          // stable index-based spacing
-          x = drawPadding + i * indexSpacing;
-        }
+        
+        // stable index-based spacing
+        const  x = drawPadding + i * indexSpacing;
+  
 
         // snap to half pixel for crisp stable lines and to reduce trembling
         const sx = Math.round(x) + 0.05;
         const sy = Math.round(y) + 0.05;
-        // const sx = Math.round(x) + 0.5;
-        // const sy = Math.round(y) + 0.5;
 
         if (i === 0) ctx.moveTo(sx, sy);
         else ctx.lineTo(sx, sy);
@@ -248,7 +222,7 @@ export default function FastLineCanvas({
           rafRef.current = null;
         }
       }
-    }, [extValuesList,isDark]); // Make sure the effect only when external values changes
+    }, [extValuesList,theme]); // Make sure the effect only when external values changes
 
 
   // render container and canvas
@@ -270,7 +244,7 @@ export default function FastLineCanvas({
         }}
         >
         {graphTitle ?? "Title"}
-</div>
+      </div>
        <div className="font-mono font-semibold absolute bottom-0 left-0 "
 
         // style={{
