@@ -78,7 +78,7 @@ const OneInfoBox = ({
       {title}
       </div>
       <div 
-        className="font-mono font-semibold text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl 2xl:text-7xl absolute top-1/2 transform -translate-y-1/2"
+        className="font-mono font-semibold text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl 2xl:text-6xl absolute top-1/2 transform -translate-y-1/2"
         style={{color: color}}
         >
       {value}

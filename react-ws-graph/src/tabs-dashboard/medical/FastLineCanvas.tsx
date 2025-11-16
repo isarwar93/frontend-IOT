@@ -46,18 +46,12 @@ export default function FastLineCanvas({
   const [ isDark, setIsDark ] = useState<boolean>();
 
   // refs and state
-  // const containerRef = useRef<HTMLDivElement | null>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const rafRef = useRef<number | null>(null);
 
   // dynamic size (responsive)
   const [size, setSize] = useState<{ width: number; height: number }>(() => ({ width, height }));
 
-  // buffer refs (internal when external not provided)
-  const capRef = useRef<number>(cap);
-  const valuesRefList = useRef<Float32Array[]>([]);
-  const headRef = useRef<number>(typeof extHead === "number" ? extHead : -1);
-  const lineColorsRef = useRef<string[]>(extLineColors ?? []);
  
   let running = true;
   // main draw loop
@@ -66,12 +60,14 @@ export default function FastLineCanvas({
     if (!canvas) return;
     const ctx = canvas.getContext("2d", { alpha: false });
     if (!ctx) return;
-     if (theme === "dark") setIsDark(true);
-    else setIsDark(false);
-
-    // if (extTimes) timesRef.current = extTimes;
-    if (typeof extHead === "number") headRef.current = extHead;
-    if (extLineColors) extLineColors = extLineColors; 
+    if (!running) return;
+    if (!extValuesList) return;// valuesRefList.current = extValuesList; 
+    // if any external value undefined, skip
+    for (let s = 0; s < extValuesList.length; s++) {
+      if (!extValuesList[s]) return;
+    }
+    if (theme === "dark") setIsDark(true);
+      else setIsDark(false);
 
     const dpr = Math.max(1, window.devicePixelRatio || 1);
     const targetW = Math.max(1, size.width);
@@ -91,9 +87,9 @@ export default function FastLineCanvas({
   
     let colors: string[];
     // choose colors based on theme
-    lineColorsRef.current=extLineColors??[];
-    if (lineColorsRef.current.length>0) {
-      colors = lineColorsRef.current;
+    const localLineColors=extLineColors??[];
+    if (localLineColors.length>0) {
+      colors = localLineColors;
     } 
     else {
      colors = isDark ? DEFAULT_COLORS_DARK : DEFAULT_COLORS_LIGHT;
@@ -101,15 +97,14 @@ export default function FastLineCanvas({
     
     const gridColor = isDark ? "#263238" : "#4e6696ff";
     const bgColor = isDark ? "#0b1220" : "#d1deeeff";
+    
+    const localValuesList = extValuesList ? extValuesList : [];
 
-    if (!running) return;
 
-    // const localTimes = timesRef.current;
-    if (extValuesList) valuesRefList.current = extValuesList; 
-    const localValuesList = valuesRefList.current;
+    //valuesRefList.current;
     const numOftotalSeries = localValuesList.length;
-    const head = headRef.current;
-    const localCap = capRef.current;
+    const head = extHead !== undefined ? extHead : 0;
+    const localCap = cap? cap : 1024;
     const xAxisDataPointsToShow = Math.min(xAxisDataPoints, localCap);
 
     if (xAxisDataPointsToShow <= 1 || head < 0) {
@@ -224,7 +219,6 @@ export default function FastLineCanvas({
       }
     }, [extValuesList,theme]); // Make sure the effect only when external values changes
 
-
   // render container and canvas
   return (
       <div 
@@ -245,12 +239,7 @@ export default function FastLineCanvas({
         >
         {graphTitle ?? "Title"}
       </div>
-       <div className="font-mono font-semibold absolute bottom-0 left-0 "
-
-        // style={{
-        //   bottom: `0px`, left: `0px`,
-        //   color: isDark ? DEFAULT_COLORS_DARK[1] : DEFAULT_COLORS_LIGHT[1]}}
-        >
+      <div className="font-mono font-semibold absolute bottom-0 left-0 ">
        {minValue}
       
       </div>

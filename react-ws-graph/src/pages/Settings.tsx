@@ -69,13 +69,13 @@ const WebsocketFpsSettings = () => {
         <input
           type="number"
           min={1}
-          max={60}
+          max={500}
           className="p-1 w-20 rounded border bg-muted text-foreground"
           value={fps}
           onChange={(e) => handleFpsChange(Number(e.target.value))}
           onBlur={() => {
             if (fps < 1) handleFpsChange(1);
-            if (fps > 60) handleFpsChange(60);
+            if (fps > 500) handleFpsChange(500);
           }}
         />
     </div>

@@ -1,100 +1,120 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { use, useEffect, useRef, useState } from "react";
 import MedTopBar  from "./MedTopBar";
 import FastLineCanvas from "./FastLineCanvas";
 import BigInfos from "./BigInfos";
-import { startTimer, stopTimer  } from "./MedWebSocket";
+import { initChannels  } from "./MedWebSocket";
 import { useDataStore } from "./useMedicalStore";
 
 
 
 export const Medical: React.FC = () => {
 
-  // const rafRef = useRef<number | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const channels = useDataStore((s) => s.channels);
-
-  const sampleInterval = 10;
-  
-  const dataSimulateRef = useRef<Float32Array[]>([]);
+  const dataRef = useRef<Float32Array[]>([]);
   const headRef = useRef<number[]>([]);
   const lenRef = useRef<number[]>([]);
+  const maxValueRef = useRef<number[]>([]);
+  const minValueRef = useRef<number[]>([]);
+  const avgValueRef = useRef<number[]>([]);
+  const [linesBp, setLinesBp] = useState<string[]>([]);
+  const [linesBodyTemp, setLinesBodyTemp] = useState<string[]>([]);
+  const containerRef2 = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    startTimer(sampleInterval);
-    return () => stopTimer();
+    initChannels(["ecg", "heart_rate", "respiration_rate",
+        "blood_pressure", "body_temperature"
+    ], 1024);// buffer size 1024
   }, []);// run one time only
 
-
-  const [isTabVisible, setIsTabVisible] = useState(true);
-
-  const handleVisibilityChange = useCallback(() => {
-    setIsTabVisible(document.visibilityState === 'visible');
-  }, []);
-
-  useEffect(() => {
-    //stop the timer when tab is not active
-    if (!isTabVisible) {
-      stopTimer();
-    } else {
-      startTimer(sampleInterval);
-    }
-    },
-    [isTabVisible]);
-
-  useEffect(() => {
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, []);
+ 
 
   useEffect(() => {
     const allBuffers = channels.map(ch => ch.buffer);
-    for (let s = 0; s < allBuffers.length; s++) {
-      dataSimulateRef.current[s] = allBuffers[s];
+    if (allBuffers.length === 0) return;
+    // last two lines are for blood pressure and body temperature
+    for (let s = 0; s < allBuffers.length-2; s++) {
+      dataRef.current[s] = allBuffers[s];
       lenRef.current[s] = channels.map((ch => ch.buffer.length))[s];
-      headRef.current[s] =  channels.map((ch => ch.head))[s]-1
+      headRef.current[s] =  channels.map((ch => ch.head))[s]-1;
+      maxValueRef.current[s] = channels.map((ch => ch.max ?? 0))[s];
+      //we need to round the value to 0 decimal place
+      maxValueRef.current[s] = Math.round(maxValueRef.current[s] * 1) / 1;
+      minValueRef.current[s] = channels.map((ch => ch.min ?? 0))[s];
+      minValueRef.current[s] = Math.round(minValueRef.current[s] * 1) / 1;
+      avgValueRef.current[s] = channels.map((ch => ch.avg ?? 0))[s];
+      avgValueRef.current[s] = Math.round(avgValueRef.current[s] * 1) / 1;
     }
-  }, [channels]);
 
+    // for blood pressure and body temperature
+    const lastIndex = allBuffers.length-2;
+    dataRef.current[lastIndex] = allBuffers[lastIndex];
+    lenRef.current[lastIndex] = channels.map((ch => ch.buffer.length))[lastIndex];
+    headRef.current[lastIndex] =  channels.map((ch => ch.head))[lastIndex]-1;
+    maxValueRef.current[lastIndex] = channels.map((ch => ch.max ?? 0))[lastIndex];
+    maxValueRef.current[lastIndex] = Math.round(maxValueRef.current[lastIndex] * 10) / 10;
+    minValueRef.current[lastIndex] = channels.map((ch => ch.min ?? 0))[lastIndex];
+    minValueRef.current[lastIndex] = Math.round(minValueRef.current[lastIndex] * 10) / 10;
+    avgValueRef.current[lastIndex] = channels.map((ch => ch.avg ?? 0))[lastIndex];
+    avgValueRef.current[lastIndex] = Math.round(avgValueRef.current[lastIndex] * 10) / 10;
 
+    const lastIndex2 = allBuffers.length-1;
+    dataRef.current[lastIndex2] = allBuffers[lastIndex2];
+    lenRef.current[lastIndex2] = channels.map((ch => ch.buffer.length))[lastIndex2];
+    headRef.current[lastIndex2] =  channels.map((ch => ch.head))[lastIndex2]-1;
+    maxValueRef.current[lastIndex2] = channels.map((ch => ch.max ?? 0))[lastIndex2];
+    maxValueRef.current[lastIndex2] = Math.round(maxValueRef.current[lastIndex2] * 10) / 10;
+    minValueRef.current[lastIndex2] = channels.map((ch => ch.min ?? 0))[lastIndex2];
+    minValueRef.current[lastIndex2] = Math.round(minValueRef.current[lastIndex2] * 10) / 10;
+    avgValueRef.current[lastIndex2] = channels.map((ch => ch.avg ?? 0))[lastIndex2];
+    avgValueRef.current[lastIndex2] = Math.round(avgValueRef.current[lastIndex2] * 10) / 10;
 
-  // To create simulated value for graphValues
-  const valueSimulate = () => {
-    let valueNumber: number = 0;
-    valueNumber = Math.floor(Math.random() * (120 - 60 + 1)) + 60;
-    return valueNumber;
-  }
-  const [simulatedValue, setSimulatedValue] = useState<string[]>(["0","0","0"]);
-  // Continues update of simulated value for graphValues
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setSimulatedValue([String(valueSimulate()),String(valueSimulate()),String(valueSimulate())]);
-    }, 1000); // Update every second
-    return () => clearInterval(interval);
-  }, []);  
+      // update log lines for blood pressure
+      const bpIndex = allBuffers.length-2;
+      const bpData = dataRef.current[bpIndex];
+      const bpHead = headRef.current[bpIndex];
+      const bpIdx = bpHead % bpData.length;
+      const bpValue = bpData[bpIdx]??0;
 
+      // update log lines for body temperature
+      const bodyTempIndex = allBuffers.length-1;
+      const bodyTempData = dataRef.current[bodyTempIndex];
+      const bodyTempHead = headRef.current[bodyTempIndex];
+      const bodyTempIdx = bodyTempHead % bodyTempData.length;
+      const bodyTempValue = bodyTempData[bodyTempIdx];
 
-  //Blood pressure values arriving simulation
-  const [lines, setLines] = useState<string[]>([]);
-  const containerRef2 = useRef<HTMLDivElement>(null);
-  
-  // Simulate incoming messages every 500ms
-  useEffect(() => {
-      setLines(prev => {
-        const date = new Date();
-        const showTime = date.getHours() 
-        + ':' + date.getMinutes() 
-        + ":" + date.getSeconds();
-        // we want to show complete data from websocket data
-        const dataSimulateRefCurrent = dataSimulateRef.current[0];
-        // we want to print whole buffer data as string
-        // const dataString = Array.from(dataSimulateRefCurrent).map(num => num.toFixed(2)).join(", ");
-        const newLines = [...prev, ` ${showTime} -> Message ${simulatedValue[0]}`  ];
+      // we want to show both blood pressure and body temperature in the log
+      if (containerRef2.current) {
+        containerRef2.current.scrollTop = containerRef2.current.scrollHeight;
+      }
+      const date = new Date();
+      const showTime = date.getHours() 
+      + ':' + date.getMinutes() 
+      + ":" + date.getSeconds();
+      setLinesBp(prev => {
+        console.log("bp is NaN here");
+        if (isNaN(bpValue)) {
+          return prev;
+        }
+        const newLines = [...prev, ` ${showTime} -> Blood Pressure: ${bpValue.toFixed(1)} mmHg, `  ];
         // keep only last 20 lines
         return newLines.slice(-20);
       });
+      
+      setLinesBodyTemp(prev => {
 
-  }, [simulatedValue]);
+        if (isNaN(bodyTempValue)) {
+
+          return prev;
+        }
+        const newLines = [...prev, ` ${showTime} ->  Body Temp: ${bodyTempValue.toFixed(1)} °C`  ];
+        // keep only last 20 lines
+        return newLines.slice(-20);
+      });
+   
+  }, [channels]);
+
+ 
+ 
 
   return (
     <div className="space-y-1">
@@ -108,78 +128,77 @@ export const Medical: React.FC = () => {
         className=" rounded-tl-md p-0 border border-b-0 border-r-0"
         style={{width:"70%",height:"400px"}}  
       >
-        <FastLineCanvas  
-                        valuesList={[dataSimulateRef.current[0]]}
-                        currentHead={headRef.current[0]}
-                        xAxisDataPoints={lenRef.current[0]}
-                        numSeries={1}
-                        cap={4096}
-                        lineColors={["#afa22bff"]}
-                        graphTitle="ECG"
-        /> 
-        <FastLineCanvas 
-                        valuesList={[dataSimulateRef.current[1]]}
-                        currentHead={headRef.current[1]}
-                        xAxisDataPoints={lenRef.current[1]}
-                        numSeries={1}
-                        cap={4096}
-                        lineColors={["#2faf2bff"]}
-                        graphTitle="Pulse"
-        />
+      <FastLineCanvas  
+                      valuesList={[dataRef.current[0]]}
+                      currentHead={headRef.current[0]-1}
+                      xAxisDataPoints={lenRef.current[0]}
+                      numSeries={1}
+                      cap={4096}
+                      lineColors={["#afa22bff"]}
+                      graphTitle="ECG"
+      /> 
+      <FastLineCanvas 
+                      valuesList={[dataRef.current[1]]}
+                      currentHead={headRef.current[1]}
+                      xAxisDataPoints={lenRef.current[1]}
+                      numSeries={1}
+                      cap={4096}
+                      lineColors={["#2faf2bff"]}
+                      graphTitle="Pulse"
+      />
 
-        <FastLineCanvas 
-                        valuesList={[dataSimulateRef.current[2]]}
-                        currentHead={headRef.current[2]}
-                        xAxisDataPoints={lenRef.current[2]}
-                        numSeries={1}
-                        cap={4096}
-                        lineColors={["#ca4821ff"]}
-                        graphTitle="Resp"
-        />
+      <FastLineCanvas 
+                      valuesList={[dataRef.current[2]]}
+                      currentHead={headRef.current[2]}
+                      xAxisDataPoints={lenRef.current[2]}
+                      numSeries={1}
+                      cap={4096}
+                      lineColors={["#ca4821ff"]}
+                      graphTitle="Resp"
+      />
       </div> 
-       <div
+      <div
         className="rounded-tr-md border border-b-0"
         style={{width:"30%",height:"400px"}}  
       >
         <BigInfos
-                        Colors={["#c9c621ff"]}
-                        Title1="AVG"
-                        Unit1="mV"
-                        //Value1={headRef.current[0].toString()}
-                        Value1={simulatedValue[0]}
-                        Title2="MAX"
-                        Unit2="mV"
-                        Value2={(parseInt(simulatedValue[0])+42).toString()}
-                        Title3="MIN"
-                        Unit3="mV"
-                        Value3={(parseInt(simulatedValue[0])+66).toString()}
+                      Colors={["#c9c621ff"]}
+                      Title1="MAX"
+                      Unit1="mV"
+                      Value1={maxValueRef.current[0] !== undefined ? maxValueRef.current[0].toString() : "0"}
+                      Title2="MIN"
+                      Unit2="mV"
+                      Value2={minValueRef.current[0] !== undefined ? minValueRef.current[0].toString() : "0"}
+                      Title3="AVG"
+                      Unit3="mV"
+                      Value3={avgValueRef.current[0] !== undefined ? avgValueRef.current[0].toString() : "0"}
         />
         
         <BigInfos
-                        Colors={["#21c997ff"]}
-                        Title1="AVG"
-                        Unit1="bpm"
-                        Value1={simulatedValue[1]}
-                        Title2="MAX"
-                        Unit2="bpm"
-                        Value2={(parseInt(simulatedValue[1])+3).toString()}
-                        Title3="MIN"
-                        Unit3="bpm"
-                        Value3={(parseInt(simulatedValue[1])+183).toString()}
+                      Colors={["#21c997ff"]}
+                      Title1="MAX"
+                      Unit1="bpm"
+                      Value1={maxValueRef.current[1] !== undefined ? maxValueRef.current[1].toString() : "0"}
+                      Title2="MIN"
+                      Unit2="bpm"
+                      Value2={minValueRef.current[1] !== undefined ? minValueRef.current[1].toString() : "0"}
+                      Title3="AVG"
+                      Unit3="bpm"
+                      Value3={avgValueRef.current[1] !== undefined ? avgValueRef.current[1].toString() : "0"}
         />
 
         <BigInfos
-                        Colors={["#7a74ceff"]}
-                        Title1="AVG"
-                        Unit1="bpm"
-                        Value1={simulatedValue[2]}
-                        Title2="MAX"
-                        Unit2="bpm"
-                        Value2={(parseInt(simulatedValue[2])+9).toString()}
-                        Title3="MIN"
-                        Unit3="bpm"
-                        Value3={(parseInt(simulatedValue[2])+52).toString()}
-        />
+                      Colors={["#7a74ceff"]}
+                      Title1="MAX"
+                      Unit1="bpm"
+                      Value1={maxValueRef.current[2] !== undefined ? maxValueRef.current[2].toString() : "0"}
+                      Title2="MIN"
+                      Unit2="bpm"
+                      Value2={minValueRef.current[2] !== undefined ? minValueRef.current[2].toString() : "0"}
+                      Title3="AVG"
+                      Unit3="bpm"
+                      Value3={avgValueRef.current[2] !== undefined ? avgValueRef.current[2].toString() : "0"}
+        /> 
       </div>
 
       <div
@@ -217,7 +236,7 @@ export const Medical: React.FC = () => {
           ref={containerRef2}
           // style={{height:"40px"}}
           >
-            {lines.map((line, i) => (
+            {linesBp.map((line, i) => (
               <div key={i}>{line}</div>
             ))}
           </div>
@@ -234,7 +253,7 @@ export const Medical: React.FC = () => {
           ref={containerRef2}
           // style={{height:"40px"}}
           >
-            {lines.map((line, i) => (
+            {linesBodyTemp.map((line, i) => (
               <div key={i}>{line}</div>
             ))}
           </div>

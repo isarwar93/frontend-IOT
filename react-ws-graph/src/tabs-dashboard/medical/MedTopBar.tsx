@@ -22,6 +22,8 @@ export default function MedTopBar() {
 
   let mac = connectedDevices?.[0]?.mac
 
+  
+
   // --- Reconnect current device (disconnect + connect + fetch services) ---
   const reconnect = async () => {
     setBleConnected(false);

@@ -6,6 +6,9 @@ type ChannelBuffer = {
   name: string;
   buffer: Float32Array;
   head: number;
+  min?: number;
+  max?: number;
+  avg?: number;
 };
 
 type DataStore = {
