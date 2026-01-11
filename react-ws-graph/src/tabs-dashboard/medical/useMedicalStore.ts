@@ -16,6 +16,8 @@ type DataStore = {
   channels: ChannelBuffer[];
   setChannels: (chs: ChannelBuffer[]) => void;
   updateHead: (name: string, newHead: number) => void;
+  updateMinMaxAvg: (name: string, max: number, min: number, avg: number) => void;
+  updated: (name: string, updated: boolean) => void;
 };
 
 export const useDataStore = create<DataStore>((set) => ({
@@ -25,6 +27,18 @@ export const useDataStore = create<DataStore>((set) => ({
     set((state) => ({
       channels: state.channels.map((c) =>
         c.name === name ? { ...c, head: newHead } : c
+      ),
+    })),
+  updateMinMaxAvg: (name, max, min, avg) =>
+    set((state) => ({
+      channels: state.channels.map((c) =>
+        c.name === name ? { ...c, max, min, avg } : c
+      ),
+    })),
+  updated: (name, updated) =>
+    set((state) => ({
+      channels: state.channels.map((c) =>
+        c.name === name ? { ...c, updated } : c
       ),
     })),
 }));

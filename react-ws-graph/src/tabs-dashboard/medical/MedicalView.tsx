@@ -26,7 +26,7 @@ export const Medical: React.FC = () => {
   }, []);// run one time only
 
   useEffect(() => {
-    console.log("channels updated:", channels);
+    // console.log("channels updated:", channels);
     
     const allBuffers = channels.map(ch => ch.buffer);
     // console.log("buffers complete:", allBuffers);
@@ -43,9 +43,24 @@ export const Medical: React.FC = () => {
       avgValueRef.current[s] = channels.map((ch => ch.avg ?? 0))[s];
       avgValueRef.current[s] = Math.round(avgValueRef.current[s]);
 
-      console.log("updated channels:", channels[s].name, channels[s].updated);
-    }
+      // console.log("updated channels:", channels[s].name, channels[s].updated);
+    } 
+    // copy all data related to blood pressure and body temperature from the channels
+    const bpChannel = channels.find(ch => ch.name === "blood_pressure");
+    const bodyTempChannel = channels.find(ch => ch.name === "body_temperature");
     
+    // console.log("bpChannel:", bpChannel);
+    // console.log("bodyTempChannel:", bodyTempChannel);
+    // check if blood pressure and body temperature channels are updated
+    if (bpChannel?.updated === false) {
+          // console.log("blood pressure  not updated yet");
+      // return;
+    }
+     if (bodyTempChannel?.updated === false) {
+          // console.log(" body temperature not updated yet");
+      return;
+    }
+
     // for blood pressure
     const lastIndex = allBuffers.length-2;
     dataRef.current[lastIndex] = allBuffers[lastIndex];

@@ -1,4 +1,5 @@
 // src/lib/websocket.ts
+import { use } from "react";
 import { useDataStore } from "./useMedicalStore";
 
 
@@ -35,14 +36,16 @@ export function addValues(name: string, values: number[],max:number,min:number,a
     ch.buffer[idx] = value;
     ch.head++;
   }
-  ch.max = max;
-  ch.min = min;
-  ch.avg = avg;
-  ch.updated = true;
+  // ch.max = max;
+  // ch.min = min;
+  // ch.avg = avg;
+  // ch.updated = true;
   // Update Zustand store
+  useDataStore.getState().updateMinMaxAvg(name, max, min, avg);
+  useDataStore.getState().updated(name, true);
   useDataStore.getState().updateHead(name, ch.head);
 
-  console.log("channel after addValues:", name, ch);
+  // console.log("channel after addValues:", name, ch);
 }
 
 // export function addValue(name: string, value: number) {
@@ -72,7 +75,7 @@ export function connectWebSocket() {
       const data = m?.websocket_data || m;
       const sensors = data?.sensors || {};
 
-      console.log("Received websocket data:", data);
+      // console.log("Received websocket data:", data);
 
       for (const sensorName in sensors) {
         const sensorData = sensors[sensorName];
