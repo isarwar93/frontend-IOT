@@ -11,9 +11,8 @@ type Props = {
 
   numSeries?: number;        // how many waveforms to simulate / draw
   sampleInterval?: number;   // ms between samples when simulating
-  cap?: number;              // buffer capacity
+  bufferCapacity?: number;              // buffer capacity
 
-  // Visual config
   // If width/height are provided, they become minimum sizes; component is responsive to container otherwise.
   width?: number;
   height?: number;
@@ -23,8 +22,6 @@ type Props = {
   graphTitle?:string;
 };
 
-let minValue = 0;
-let maxValue = 0;
 
 const clamp = (n: number, min: number, max: number) => Math.max(min, Math.min(max, n));
 
@@ -35,7 +32,7 @@ export default function FastLineCanvas({
   valuesList: extValuesList,
   currentHead: extHead,
   numSeries = 1,
-  cap = 4096,
+  bufferCapacity = 4096,
   width = 800,
   height = 300,
   xAxisDataPoints = 2000,
@@ -51,9 +48,12 @@ export default function FastLineCanvas({
 
   // dynamic size (responsive)
   const [size, setSize] = useState<{ width: number; height: number }>(() => ({ width, height }));
-
+  let minValue = 0;
+  let maxValue = 0;
+  const [values, setValues] = useState<{ minValues: number; maxValue: number }>(() => ({ minValues: minValue, maxValue: maxValue }));
  
   let running = true;
+  let grid_set = false;
   // main draw loop
   function canvasAnimate() {
     const canvas = canvasRef.current;
@@ -100,11 +100,9 @@ export default function FastLineCanvas({
     
     const localValuesList = extValuesList ? extValuesList : [];
 
-
-    //valuesRefList.current;
     const numOftotalSeries = localValuesList.length;
     const head = extHead !== undefined ? extHead : 0;
-    const localCap = cap? cap : 1024;
+    const localCap = bufferCapacity? bufferCapacity : 2048;
     const xAxisDataPointsToShow = Math.min(xAxisDataPoints, localCap);
 
     if (xAxisDataPointsToShow <= 1 || head < 0) {
@@ -114,6 +112,7 @@ export default function FastLineCanvas({
       rafRef.current = requestAnimationFrame(canvasAnimate);
       return;
     }
+    // console.log("head:",head," xAxisDataPointsToShow:",xAxisDataPointsToShow);
     const start = (head - xAxisDataPointsToShow)%xAxisDataPointsToShow;
     // autoscale across all series with a decimated scan for performance
     let min = Infinity, max = -Infinity;
@@ -122,8 +121,8 @@ export default function FastLineCanvas({
     // To find min and max
     for (let s = 0; s < numOftotalSeries; s++) {
       let idx = start;
-      for (let i = 0; i < xAxisDataPointsToShow; i += step) {
-        idx = (idx + step) % xAxisDataPointsToShow
+      for (let i = 4; i < xAxisDataPointsToShow; i += step) {
+        idx = (idx + step) % xAxisDataPointsToShow;
         const v = localValuesList[s][idx];
         if (!Number.isFinite(v)) continue;
         if (v < min) min = v;
@@ -134,41 +133,45 @@ export default function FastLineCanvas({
     minValue = Math.round(minValue*10)/10;
     maxValue = max;
     maxValue = Math.round(maxValue*10)/10;
+    setValues({minValues:minValue,maxValue:maxValue});
+    //console.log("Min Value:",minValue," Max Value:",maxValue);
     if (!Number.isFinite(min) || !Number.isFinite(max) || min === max) {
       // fallback range
       min = isFinite(min) ? min - 1 : -1;
       max = min + 2;
     }
-    // Clear background
-    ctx.fillStyle = bgColor;
-    ctx.fillRect(0, 0, targetW, targetH);
+    //--- Create Grid lines ---
+    if (grid_set===false){
+      grid_set=true;    
+      // Clear background
+      ctx.fillStyle = bgColor;
+      ctx.fillRect(0, 0, targetW, targetH);
 
-    // draw grid (lightweight)
-    ctx.save();
-    ctx.translate(drawPadding, drawPadding);
-    ctx.globalAlpha = 0.55;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    //--- Grid lines ---
-    // TODO: make it variable
-    const gxCount = 10;
-    const gyCount = 2;
-    for (let gx = 0; gx <= gxCount; gx++) {
-      const x = (gx / gxCount) * innerW;
-      ctx.moveTo(Math.round(x) + 0.5, 0);
-      ctx.lineTo(Math.round(x) + 0.5, innerH);
-    }
-    for (let gy = 0; gy <= gyCount; gy++) {
-      const y = (gy / gyCount) * innerH;
-      ctx.moveTo(0, Math.round(y) + 0.5);
-      ctx.lineTo(innerW, Math.round(y) + 0.5);
-    }
+      // draw grid (lightweight)
+      ctx.save();
+      ctx.translate(drawPadding, drawPadding);
+      ctx.globalAlpha = 0.55;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      
+      const gxCount = 10;
+      const gyCount = 2;
+      for (let gx = 0; gx <= gxCount; gx++) {
+        const x = (gx / gxCount) * innerW;
+        ctx.moveTo(Math.round(x) + 0.5, 0);
+        ctx.lineTo(Math.round(x) + 0.5, innerH);
+      }
+      for (let gy = 0; gy <= gyCount; gy++) {
+        const y = (gy / gyCount) * innerH;
+        ctx.moveTo(0, Math.round(y) + 0.5);
+        ctx.lineTo(innerW, Math.round(y) + 0.5);
+      }
 
-    ctx.strokeStyle = gridColor;
-    ctx.stroke();
-    ctx.restore();
-    ctx.globalAlpha = 1;
-      //----------
+      ctx.strokeStyle = gridColor;
+      ctx.stroke();
+      ctx.restore();
+      ctx.globalAlpha = 1;
+    }
 
     // draw each series
     for (let s = 0; s < localValuesList.length; s++) {
@@ -180,27 +183,22 @@ export default function FastLineCanvas({
       ctx.lineCap = "round";
       ctx.strokeStyle = color;
       ctx.beginPath();
-
-      // compute X step if using index-based spacing (stable) — this avoids jitter when timestamps have small jitter
-      const indexSpacing = innerW / Math.max(1, xAxisDataPointsToShow- 1);
       let idx = start;
-      for (let i = 0;  i < xAxisDataPointsToShow; i++) {
-        idx = (idx + 1) % xAxisDataPointsToShow;
+      for (let i = 0;  i < xAxisDataPointsToShow; i += step) {
+        idx = (idx + step) % xAxisDataPointsToShow;
         const v = vals[idx];
         const vy = (v - min) / (max - min);
         const y = drawPadding + clamp(1 - vy, 0, 1) * innerH;
-
+        const x = i;
         
-        // stable index-based spacing
-        const  x = drawPadding + i * indexSpacing;
-  
-
-        // snap to half pixel for crisp stable lines and to reduce trembling
-        const sx = Math.round(x) + 0.05;
-        const sy = Math.round(y) + 0.05;
-
-        if (i === 0) ctx.moveTo(sx, sy);
-        else ctx.lineTo(sx, sy);
+        //Moves the “pen” to position (x, y)
+        //Does NOT draw anything
+        //Used to set the starting point of a path
+        if (i === 4) 
+          ctx.moveTo(x, y);
+        
+        if (i > 4)
+          ctx.lineTo(x, y);
       }
       ctx.stroke();
     }
@@ -229,7 +227,7 @@ export default function FastLineCanvas({
       <div className="font-mono font-semibold absolute top-0 left-0"
         style={{color: isDark ? DEFAULT_COLORS_DARK[1] : DEFAULT_COLORS_LIGHT[1]}}
         >
-       {maxValue}
+       {values.maxValue}
       </div>
       <div className="rounded font-bold absolute bottom-0 right-0 sm:text md:text-xl lg:text-1xl xl:text-2xl"
         style={{
@@ -240,7 +238,7 @@ export default function FastLineCanvas({
         {graphTitle ?? "Title"}
       </div>
       <div className="font-mono font-semibold absolute bottom-0 left-0 ">
-       {minValue}
+       {values.minValues}
       
       </div>
       <canvas

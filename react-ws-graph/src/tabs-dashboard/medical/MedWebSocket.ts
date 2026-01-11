@@ -19,6 +19,7 @@ export function initChannels(names: string[], size = 1024) {
     min: 0,
     max: 0,
     avg: 0, 
+    updated: false
   }));
 
   // Register references in Zustand (React can read them)
@@ -33,24 +34,28 @@ export function addValues(name: string, values: number[],max:number,min:number,a
     const idx = ch.head % ch.buffer.length;
     ch.buffer[idx] = value;
     ch.head++;
-    ch.max = max;
-    ch.min = min;
-    ch.avg = avg;
   }
+  ch.max = max;
+  ch.min = min;
+  ch.avg = avg;
+  ch.updated = true;
   // Update Zustand store
   useDataStore.getState().updateHead(name, ch.head);
+
+  console.log("channel after addValues:", name, ch);
 }
 
-export function addValue(name: string, value: number) {
-  const ch = channels.find((c) => c.name === name);
-  if (!ch) return;
+// export function addValue(name: string, value: number) {
+//   const ch = channels.find((c) => c.name === name);
+//   if (!ch) return;
 
-  const idx = ch.head % ch.buffer.length;
-  ch.buffer[idx] = value;
-  ch.head++;
-  // Update Zustand store
-  useDataStore.getState().updateHead(name, ch.head);
-}
+//   const idx = ch.head % ch.buffer.length;
+//   ch.buffer[idx] = value;
+//   ch.head++;
+//   // Update Zustand store
+//   useDataStore.getState().updateHead(name, ch.head);
+// }
+
 
 let ws: WebSocket | null = null;
 export function connectWebSocket() {
@@ -67,47 +72,60 @@ export function connectWebSocket() {
       const data = m?.websocket_data || m;
       const sensors = data?.sensors || {};
 
-      const name = "ecg"; 
+      console.log("Received websocket data:", data);
+
+      for (const sensorName in sensors) {
+        const sensorData = sensors[sensorName];
+        const past_values = sensorData?.past_values || [];
+        const max = sensorData?.max || null;
+        const min = sensorData?.min || null;
+        const avg = sensorData?.avg || null;
+        addValues(sensorName, past_values, max, min, avg);
+
+      }
+
+
+      // const name = "ecg"; 
   
-      const received_list = sensors?.ecg;
-      const avg = received_list?.avg || 0;
-      const min = received_list?.min || 0;
-      const max = received_list?.max || 0;
-      const past_values = received_list?.past_values || [];
-      addValues(name, past_values,max,min,avg);
+      // const received_list = sensors?.ecg;
+      // const avg = received_list?.avg || 0;
+      // const min = received_list?.min || 0;
+      // const max = received_list?.max || 0;
+      // const past_values = received_list?.past_values || [];
+      // addValues(name, past_values,max,min,avg);
 
-      const name_hr = "heart_rate"; 
-      const received_list_hr = sensors?.heart_rate;
-      const avg_hr = received_list_hr?.avg || 0;
-      const min_hr = received_list_hr?.min || 0;
-      const max_hr = received_list_hr?.max || 0;
-      const past_values_hr = received_list_hr?.past_values || [];
-      addValues(name_hr, past_values_hr,max_hr,min_hr,avg_hr);
+      // const name_hr = "heart_rate"; 
+      // const received_list_hr = sensors?.heart_rate;
+      // const avg_hr = received_list_hr?.avg || 0;
+      // const min_hr = received_list_hr?.min || 0;
+      // const max_hr = received_list_hr?.max || 0;
+      // const past_values_hr = received_list_hr?.past_values || [];
+      // addValues(name_hr, past_values_hr,max_hr,min_hr,avg_hr);
 
-      const name_rr = "respiration_rate"; 
-      const received_list_rr = sensors?.respiration_rate;
-      const avg_rr = received_list_rr?.avg || 0;
-      const min_rr = received_list_rr?.min || 0;
-      const max_rr = received_list_rr?.max || 0;
-      const past_values_rr = received_list_rr?.past_values || [];
-      addValues(name_rr, past_values_rr,max_rr,min_rr,avg_rr);
+      // const name_rr = "respiration_rate"; 
+      // const received_list_rr = sensors?.respiration_rate;
+      // const avg_rr = received_list_rr?.avg || 0;
+      // const min_rr = received_list_rr?.min || 0;
+      // const max_rr = received_list_rr?.max || 0;
+      // const past_values_rr = received_list_rr?.past_values || [];
+      // addValues(name_rr, past_values_rr,max_rr,min_rr,avg_rr);
 
-      // find other sensor values similarly...
-      const name_bp = "blood_pressure"; 
-      const received_list_bp = sensors?.blood_pressure;
-      const avg_bp = received_list_bp?.avg || 0;
-      const min_bp = received_list_bp?.min || 0;
-      const max_bp = received_list_bp?.max || 0;
-      const past_values_bp = received_list_bp?.past_values || [];
-      addValues(name_bp, past_values_bp,max_bp,min_bp,avg_bp);
+      // // find other sensor values similarly...
+      // const name_bp = "blood_pressure"; 
+      // const received_list_bp = sensors?.blood_pressure;
+      // const avg_bp = received_list_bp?.avg || 0;
+      // const min_bp = received_list_bp?.min || 0;
+      // const max_bp = received_list_bp?.max || 0;
+      // const past_values_bp = received_list_bp?.past_values || [];
+      // addValues(name_bp, past_values_bp,max_bp,min_bp,avg_bp);
 
-      const name_body_temp = "body_temperature"; 
-      const received_list_body_temp = sensors?.body_temperature;
-      const avg_body_temp = received_list_body_temp?.avg || 0;
-      const min_body_temp = received_list_body_temp?.min || 0;
-      const max_body_temp = received_list_body_temp?.max || 0;
-      const past_values_body_temp = received_list_body_temp?.past_values || [];
-      addValues(name_body_temp, past_values_body_temp,max_body_temp,min_body_temp,avg_body_temp);
+      // const name_body_temp = "body_temperature"; 
+      // const received_list_body_temp = sensors?.body_temperature;
+      // const avg_body_temp = received_list_body_temp?.avg || 0;
+      // const min_body_temp = received_list_body_temp?.min || 0;
+      // const max_body_temp = received_list_body_temp?.max || 0;
+      // const past_values_body_temp = received_list_body_temp?.past_values || [];
+      // addValues(name_body_temp, past_values_body_temp,max_body_temp,min_body_temp,avg_body_temp);
 
 
     } catch { /* ignore malformed frames */ }

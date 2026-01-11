@@ -6,9 +6,10 @@ type ChannelBuffer = {
   name: string;
   buffer: Float32Array;
   head: number;
-  min?: number;
-  max?: number;
-  avg?: number;
+  min: number;
+  max: number;
+  avg: number;
+  updated: boolean;
 };
 
 type DataStore = {
@@ -27,9 +28,6 @@ export const useDataStore = create<DataStore>((set) => ({
       ),
     })),
 }));
-
-
-
 
 // --- For top bar connection related ----
 export type BlePhase =
