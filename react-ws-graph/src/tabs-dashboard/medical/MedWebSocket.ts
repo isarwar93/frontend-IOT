@@ -28,9 +28,13 @@ export function initChannels(names: string[], size = 1024) {
 }
 
 
-export function addValues(name: string, values: number[],max:number,min:number,avg:number)  {
+export function addValues(name: string, current: number, values: number[], max: number, min: number, avg: number) {
   const ch = channels.find((c) => c.name === name);
   if (!ch) return;
+     
+  const idx = ch.head % ch.buffer.length;
+  ch.buffer[idx] = current;
+  ch.head++;
   for (const value of values) {
     const idx = ch.head % ch.buffer.length;
     ch.buffer[idx] = value;
@@ -75,15 +79,18 @@ export function connectWebSocket() {
       const data = m?.websocket_data || m;
       const sensors = data?.sensors || {};
 
-      // console.log("Received websocket data:", data);
 
       for (const sensorName in sensors) {
         const sensorData = sensors[sensorName];
+        const current = sensorData?.current || null;
         const past_values = sensorData?.past_values || [];
         const max = sensorData?.max || null;
         const min = sensorData?.min || null;
         const avg = sensorData?.avg || null;
-        addValues(sensorName, past_values, max, min, avg);
+        if (sensorName === "blood_pressure" || sensorName === "body_temperature") {
+          console.log(`Received ${sensorName} data:`, sensorData);
+        }
+        addValues(sensorName,current, past_values, max, min, avg);
 
       }
 

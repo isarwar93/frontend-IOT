@@ -60,7 +60,6 @@ export const Medical: React.FC = () => {
           // console.log(" body temperature not updated yet");
       return;
     }
-
     // for blood pressure
     const lastIndex = allBuffers.length-2;
     dataRef.current[lastIndex] = allBuffers[lastIndex];
@@ -84,19 +83,20 @@ export const Medical: React.FC = () => {
     avgValueRef.current[lastIndex2] = channels.map((ch => ch.avg ?? 0))[lastIndex2];
     avgValueRef.current[lastIndex2] = Math.round(avgValueRef.current[lastIndex2] * 10) / 10;
 
+  
     // update log lines for blood pressure
     const bpIndex = allBuffers.length-2;
     const bpData = dataRef.current[bpIndex];
     const bpHead = headRef.current[bpIndex];
     const bpIdx = bpHead % bpData.length;
-    const bpValue = bpData[bpIdx];
+    const bpValue = bpData[headRef.current[allBuffers.length-2]-1];
 
     // update log lines for body temperature
     const bodyTempIndex = allBuffers.length-1;
     const bodyTempData = dataRef.current[bodyTempIndex];
     const bodyTempHead = headRef.current[bodyTempIndex];
     const bodyTempIdx = bodyTempHead % bodyTempData.length;
-    const bodyTempValue = bodyTempData[bodyTempIdx];
+    const bodyTempValue = bodyTempData[headRef.current[allBuffers.length-1]-1];
 
     // console.log("Blood Pressure Value:", bpValue);
     // console.log("Body Temperature Value:", bodyTempValue);
