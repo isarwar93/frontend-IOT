@@ -51,6 +51,10 @@ export default function FastLineCanvas({
   // refs and state
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const rafRef = useRef<number | null>(null);
+  
+  // Smoothed min/max to prevent wobbly transitions
+  const smoothMinRef = useRef<number | null>(null);
+  const smoothMaxRef = useRef<number | null>(null);
 
   // dynamic size (responsive)
   const [size, setSize] = useState<{ width: number; height: number }>(() => ({ width, height }));
@@ -109,7 +113,8 @@ export default function FastLineCanvas({
     const numOftotalSeries = localValuesList.length;
     const head = extHead !== undefined ? extHead : 0;
     const localCap = bufferCapacity? bufferCapacity : 2048;
-    const xAxisDataPointsToShow = Math.min(xAxisDataPoints, localCap, head);
+    // Show fewer points to avoid leftmost mismatch at buffer boundaries
+    const xAxisDataPointsToShow = Math.min(xAxisDataPoints - 10, localCap - 10, head);
 
     if (xAxisDataPointsToShow <= 1 || head < 0) {
       //clear to background
@@ -146,16 +151,29 @@ export default function FastLineCanvas({
       }
     }
     
+    // Apply exponential smoothing to prevent wobbly transitions (smoothing factor 0.15)
+    const smoothingFactor = 0.15;
+    if (smoothMinRef.current === null) {
+      smoothMinRef.current = min;
+      smoothMaxRef.current = max;
+    } else {
+      smoothMinRef.current = smoothMinRef.current * (1 - smoothingFactor) + min * smoothingFactor;
+      smoothMaxRef.current = smoothMaxRef.current * (1 - smoothingFactor) + max * smoothingFactor;
+    }
+    
+    const smoothMin = smoothMinRef.current;
+    const smoothMax = smoothMaxRef.current;
+    
     // Display values (actual data range)
-    const displayMin = Math.round(min * 10) / 10;
-    const displayMax = Math.round(max * 10) / 10;
+    const displayMin = Math.round(smoothMin * 10) / 10;
+    const displayMax = Math.round(smoothMax * 10) / 10;
     setValues({minValues: displayMin, maxValue: displayMax});
     
-    // Add small margin only to top to prevent clipping
-    const range = max - min;
-    const topMargin = range * 0.05;
-    const drawMin = min;
-    const drawMax = max + topMargin;
+    // Add margin to top to prevent clipping
+    const range = smoothMax - smoothMin;
+    const topMargin = range * 0.10;
+    const drawMin = smoothMin;
+    const drawMax = smoothMax + topMargin;
     //--- Create Grid lines ---
     if (grid_set===false){
       grid_set=true;    

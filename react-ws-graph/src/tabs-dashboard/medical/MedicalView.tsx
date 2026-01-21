@@ -34,7 +34,7 @@ export const Medical: React.FC = () => {
       if (!ch) return;
       
       dataRef.current[index] = ch.buffer;
-      lenRef.current[index] = ch.buffer.length-10;
+      lenRef.current[index] = ch.buffer.length;
       headRef.current[index] = ch.head;
       
       const roundFactor = Math.pow(10, decimals);
