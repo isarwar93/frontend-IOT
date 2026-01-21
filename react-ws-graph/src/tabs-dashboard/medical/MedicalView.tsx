@@ -85,7 +85,7 @@ export const Medical: React.FC = () => {
       if (isNaN(bpValue)) {
         return prev;
       }
-      const newLines = [...prev, ` ${showTime} -> Blood Pressure: ${bpValue.toFixed(1)} mmHg, `  ];
+      const newLines = [...prev, `${showTime} → BP: ${bpValue.toFixed(1)} mmHg`];
       // keep only last 20 lines
       return newLines.slice(-20);
     });
@@ -107,16 +107,16 @@ export const Medical: React.FC = () => {
  
 
   return (
-    <div className="space-y-1">
+    <div className="space-y-2">
       <MedTopBar />
       <div
        ref={containerRef}
-       className={`rounded-t-md p-0 flex flex-wrap`}
-       style={{ width: "100%", height: "540px" }}
+       className={`rounded-xl p-0 flex flex-wrap shadow-2xl bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 dark:from-slate-950 dark:via-blue-950 dark:to-slate-900`}
+       style={{ width: "100%", height: "465px" }}
       >
       <div
-        className=" rounded-tl-md p-0 border border-b-0 border-r-0"
-        style={{width:"70%",height:"400px"}}  
+        className="rounded-tl-xl p-1.5 border-2 border-b-0 border-r-0 border-blue-300/30 dark:border-cyan-500/30 bg-gradient-to-br from-white via-blue-50/30 to-slate-50 dark:from-slate-900 dark:via-blue-950/50 dark:to-slate-950"
+        style={{width:"70%",height:"350px"}}  
       >
       <FastLineCanvas  
         valuesList={[dataRef.current[0]]}
@@ -124,8 +124,8 @@ export const Medical: React.FC = () => {
         xAxisDataPoints={lenRef.current[0]}
         numSeries={1}
         bufferCapacity={2048}
-        lineColors={["#afa22bff"]}
-        graphTitle="ECG"
+        lineColors={["#10b981"]}
+        graphTitle="💚 ECG"
         storeMin={minValueRef.current[0]}
         storeMax={maxValueRef.current[0]}
       /> 
@@ -135,8 +135,8 @@ export const Medical: React.FC = () => {
         xAxisDataPoints={lenRef.current[1]}
         numSeries={1}
         bufferCapacity={2048}
-        lineColors={["#2faf2bff"]}
-        graphTitle="Pulse"
+        lineColors={["#3b82f6"]}
+        graphTitle="💙 Pulse"
         storeMin={minValueRef.current[1]}
         storeMax={maxValueRef.current[1]}
       />
@@ -147,50 +147,50 @@ export const Medical: React.FC = () => {
         xAxisDataPoints={lenRef.current[2]}
         numSeries={1}
         bufferCapacity={2048}
-        lineColors={["#ca4821ff"]}
-        graphTitle="Resp"
+        lineColors={["#f59e0b"]}
+        graphTitle="🧡 Respiration"
         storeMin={minValueRef.current[2]}
         storeMax={maxValueRef.current[2]}
       />
       </div> 
       <div
-        className="rounded-tr-md border border-b-0"
-        style={{width:"30%",height:"400px"}}  
+        className="rounded-tr-xl border-2 border-b-0 border-blue-300/30 dark:border-cyan-500/30 bg-gradient-to-br from-slate-50 via-white to-blue-50 dark:from-slate-950 dark:via-slate-900 dark:to-blue-950 p-1.5"
+        style={{width:"30%",height:"350px"}}  
       >
         <BigInfos
-          Colors={["#c9c621ff"]}
-          Title1="MAX"
+          Colors={["#10b981"]}
+          Title1="MIN"
           Unit1="mV"
-          Value1={maxValueRef.current[0] !== undefined ? maxValueRef.current[0].toString() : "0"}
-          Title2="MIN"
+          Value1={minValueRef.current[0] !== undefined ? minValueRef.current[0].toString() : "0"}
+          Title2="MAX"
           Unit2="mV"
-          Value2={minValueRef.current[0] !== undefined ? minValueRef.current[0].toString() : "0"}
+          Value2={maxValueRef.current[0] !== undefined ? maxValueRef.current[0].toString() : "0"}
           Title3="AVG"
           Unit3="mV"
           Value3={avgValueRef.current[0] !== undefined ? avgValueRef.current[0].toString() : "0"}
         />
         
         <BigInfos
-          Colors={["#21c997ff"]}
-          Title1="MAX"
+          Colors={["#3b82f6"]}
+          Title1="MIN"
           Unit1="bpm"
-          Value1={maxValueRef.current[1] !== undefined ? maxValueRef.current[1].toString() : "0"}
-          Title2="MIN"
+          Value1={minValueRef.current[1] !== undefined ? minValueRef.current[1].toString() : "0"}
+          Title2="MAX"
           Unit2="bpm"
-          Value2={minValueRef.current[1] !== undefined ? minValueRef.current[1].toString() : "0"}
+          Value2={maxValueRef.current[1] !== undefined ? maxValueRef.current[1].toString() : "0"}
           Title3="AVG"
           Unit3="bpm"
           Value3={avgValueRef.current[1] !== undefined ? avgValueRef.current[1].toString() : "0"}
         />
 
         <BigInfos
-          Colors={["#7a74ceff"]}
-          Title1="MAX"
+          Colors={["#f59e0b"]}
+          Title1="MIN"
           Unit1="bpm"
-          Value1={maxValueRef.current[2] !== undefined ? maxValueRef.current[2].toString() : "0"}
-          Title2="MIN"
+          Value1={minValueRef.current[2] !== undefined ? minValueRef.current[2].toString() : "0"}
+          Title2="MAX"
           Unit2="bpm"
-          Value2={minValueRef.current[2] !== undefined ? minValueRef.current[2].toString() : "0"}
+          Value2={maxValueRef.current[2] !== undefined ? maxValueRef.current[2].toString() : "0"}
           Title3="AVG" 
           Unit3="bpm"
           Value3={avgValueRef.current[2] !== undefined ? avgValueRef.current[2].toString() : "0"}
@@ -199,54 +199,55 @@ export const Medical: React.FC = () => {
 
       <div
       // we want it to start again from next line 
-      className="rounded-b-md border"
-      style={{width:"100%",height:"140px"}}
+      className="rounded-b-xl border-2 border-blue-300/30 dark:border-cyan-500/30 bg-gradient-to-br from-white via-slate-50 to-blue-50 dark:from-slate-900 dark:via-slate-950 dark:to-blue-950 p-2"
+      style={{width:"100%",height:"165px"}}
       > 
 
-      <div className="p-1 grid grid-cols-3 gap-1 h-full"
-        style={{height:"40px"}}
-      >
+      <div className="grid grid-cols-3 gap-2 h-full">
         <div
-          style={{height:"130px"}}
-          className="border p-1 rounded-md"
+          className="border-2 border-blue-400/30 dark:border-cyan-500/30 p-2 rounded-lg bg-gradient-to-br from-blue-50 via-white to-cyan-50 dark:from-blue-950/50 dark:via-slate-900 dark:to-cyan-950/50 shadow-lg flex flex-col min-h-0 overflow-hidden"
         >
-          <h2 className="font-bold mb-2">Information</h2>
-          <div className="w-full h-20 text-green-400 font-mono text-sm overflow-y-auto rounded-lg p-0" 
+          <h2 className="font-bold text-sm mb-1 text-blue-700 dark:text-cyan-400 flex items-center gap-1.5 flex-shrink-0">
+            <span className="text-base">👤</span> Patient Info
+          </h2>
+          <div className="flex-1 text-slate-700 dark:text-slate-300 font-mono text-xs overflow-y-auto rounded p-1.5 bg-white/50 dark:bg-slate-950/50 border border-blue-200 dark:border-blue-800 min-h-0" 
           >
-            <p>
-              Name: Ismail <br></br>
-              Age: 33<br></br>
-              Height: 173 cm<br></br>
-              Weight: 70.5 kg<br></br>
+            <p className="leading-relaxed">
+              <span className="text-blue-600 dark:text-cyan-400 font-semibold">Name:</span> Ismail <br></br>
+              <span className="text-blue-600 dark:text-cyan-400 font-semibold">Age:</span> 33 years<br></br>
+              <span className="text-blue-600 dark:text-cyan-400 font-semibold">Height:</span> 173 cm<br></br>
+              <span className="text-blue-600 dark:text-cyan-400 font-semibold">Weight:</span> 70.5 kg<br></br>
             </p>
           </div>
         </div>
 
 
         <div
-          style={{height:"130px"}}
-          className="border p-1 rounded-md"
+          className="border-2 border-red-400/30 dark:border-pink-500/30 p-2 rounded-lg bg-gradient-to-br from-red-50 via-white to-pink-50 dark:from-red-950/50 dark:via-slate-900 dark:to-pink-950/50 shadow-lg flex flex-col min-h-0 overflow-hidden"
         >
-          <h2 className="font-bold mb-2">Blood Pressure</h2>
-          <div className="w-full h-20 text-green-400 font-mono text-sm overflow-y-auto rounded-lg p-0" 
+          <h2 className="font-bold text-sm mb-1 text-red-700 dark:text-pink-400 flex items-center gap-1.5 flex-shrink-0">
+            <span className="text-base">❤️</span> BP Inst
+          </h2>
+          <div className="flex-1 text-slate-700 dark:text-slate-300 font-mono text-xs overflow-y-auto rounded p-1.5 bg-white/50 dark:bg-slate-950/50 border border-red-200 dark:border-red-800 min-h-0" 
           ref={containerRef2}
           >
             {linesBp.map((line, i) => (
-              <div key={i}>{line}</div>
+              <div key={i} className="text-red-600 dark:text-pink-400 leading-tight">{line}</div>
             ))}
           </div>
         </div>
 
         <div
-          style={{height:"130px"}}
-          className="border p-1 rounded-md"
+          className="border-2 border-orange-400/30 dark:border-amber-500/30 p-2 rounded-lg bg-gradient-to-br from-orange-50 via-white to-amber-50 dark:from-orange-950/50 dark:via-slate-900 dark:to-amber-950/50 shadow-lg flex flex-col min-h-0 overflow-hidden"
         >
-          <h2 className="font-bold mb-2">Body Temp</h2>
-          <div className="w-full h-20 text-green-400 font-mono text-sm overflow-y-auto rounded-lg p-0" 
+          <h2 className="font-bold text-sm mb-1 text-orange-700 dark:text-amber-400 flex items-center gap-1.5 flex-shrink-0">
+            <span className="text-base">🌡️</span> Body Temperature
+          </h2>
+          <div className="flex-1 text-slate-700 dark:text-slate-300 font-mono text-xs overflow-y-auto rounded p-1.5 bg-white/50 dark:bg-slate-950/50 border border-orange-200 dark:border-orange-800 min-h-0" 
           ref={containerRef2}
           >
             {linesBodyTemp.map((line, i) => (
-              <div key={i}>{line}</div>
+              <div key={i} className="text-orange-600 dark:text-amber-400 leading-tight">{line}</div>
             ))}
           </div>
         </div>
