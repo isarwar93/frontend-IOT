@@ -12,7 +12,7 @@ const MAC=import.meta.env.VITE_API_BASE_MAC|| "";
 
 
 let channels: ReturnType<typeof useDataStore.getState>["channels"] = [];
-export function initChannels(names: string[], size = 1024) {
+export function initChannels(names: string[], size = 2048) {
   channels = names.map((name) => ({
     name,
     buffer: new Float32Array(size),

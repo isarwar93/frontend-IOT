@@ -22,93 +22,65 @@ export const Medical: React.FC = () => {
   useEffect(() => {
     initChannels(["ecg", "heart_rate", "respiration_rate",
         "blood_pressure", "body_temperature"
-    ], 1024);// buffer size 1024
+    ], 2048);// buffer size 2048
   }, []);// run one time only
 
   useEffect(() => {
-    // console.log("channels updated:", channels);
+    if (channels.length === 0) return;
     
-    const allBuffers = channels.map(ch => ch.buffer);
-    // console.log("buffers complete:", allBuffers);
-    if (allBuffers.length === 0) return;
-    // last two lines are for blood pressure and body temperature
-    for (let s = 0; s < allBuffers.length-2; s++) {
-      dataRef.current[s] = allBuffers[s];
-      lenRef.current[s] = channels.map((ch => ch.buffer.length))[s];
-      headRef.current[s] =  channels.map((ch => ch.head))[s];
-      maxValueRef.current[s] = channels.map((ch => ch.max ?? 0))[s];
-      maxValueRef.current[s] = Math.round(maxValueRef.current[s] );
-      minValueRef.current[s] = channels.map((ch => ch.min ?? 0))[s];
-      minValueRef.current[s] = Math.round(minValueRef.current[s] );
-      avgValueRef.current[s] = channels.map((ch => ch.avg ?? 0))[s];
-      avgValueRef.current[s] = Math.round(avgValueRef.current[s]);
-
-      // console.log("updated channels:", channels[s].name, channels[s].updated);
-    } 
-    // copy all data related to blood pressure and body temperature from the channels
-    const bpChannel = channels.find(ch => ch.name === "blood_pressure");
-    const bodyTempChannel = channels.find(ch => ch.name === "body_temperature");
+    // Helper function to update channel data
+    const updateChannelData = (index: number, decimals: number = 0) => {
+      const ch = channels[index];
+      if (!ch) return;
+      
+      dataRef.current[index] = ch.buffer;
+      lenRef.current[index] = ch.buffer.length-10;
+      headRef.current[index] = ch.head;
+      
+      const roundFactor = Math.pow(10, decimals);
+      maxValueRef.current[index] = Math.round((ch.max ?? 0) * roundFactor) / roundFactor;
+      minValueRef.current[index] = Math.round((ch.min ?? 0) * roundFactor) / roundFactor;
+      avgValueRef.current[index] = Math.round((ch.avg ?? 0) * roundFactor) / roundFactor;
+    };
     
-    // console.log("bpChannel:", bpChannel);
-    // console.log("bodyTempChannel:", bodyTempChannel);
-    // check if blood pressure and body temperature channels are updated
-    if (bpChannel?.updated === false) {
-          // console.log("blood pressure  not updated yet");
-      // return;
+    // Update first 3 channels (ECG, heart_rate, respiration_rate) - no decimals
+    for (let i = 0; i < Math.min(3, channels.length); i++) {
+      updateChannelData(i, 0);
     }
-     if (bodyTempChannel?.updated === false) {
-          // console.log(" body temperature not updated yet");
-      return;
+    
+    // Update blood pressure and body temperature - 1 decimal
+    const bpIndex = channels.findIndex(ch => ch.name === "blood_pressure");
+    const bodyTempIndex = channels.findIndex(ch => ch.name === "body_temperature");
+    
+    if (bpIndex !== -1) {
+      updateChannelData(bpIndex, 1);
     }
-    // for blood pressure
-    const lastIndex = allBuffers.length-2;
-    dataRef.current[lastIndex] = allBuffers[lastIndex];
-    lenRef.current[lastIndex] = channels.map((ch => ch.buffer.length))[lastIndex];
-    headRef.current[lastIndex] =  channels.map((ch => ch.head))[lastIndex];
-    maxValueRef.current[lastIndex] = channels.map((ch => ch.max ?? 0))[lastIndex];
-    maxValueRef.current[lastIndex] = Math.round(maxValueRef.current[lastIndex] * 10) / 10;
-    minValueRef.current[lastIndex] = channels.map((ch => ch.min ?? 0))[lastIndex];
-    minValueRef.current[lastIndex] = Math.round(minValueRef.current[lastIndex] * 10) / 10;
-    avgValueRef.current[lastIndex] = channels.map((ch => ch.avg ?? 0))[lastIndex];
-    avgValueRef.current[lastIndex] = Math.round(avgValueRef.current[lastIndex] * 10) / 10;
-    // for body temperature
-    const lastIndex2 = allBuffers.length-1;
-    dataRef.current[lastIndex2] = allBuffers[lastIndex2];
-    lenRef.current[lastIndex2] = channels.map((ch => ch.buffer.length))[lastIndex2];
-    headRef.current[lastIndex2] =  channels.map((ch => ch.head))[lastIndex2];
-    maxValueRef.current[lastIndex2] = channels.map((ch => ch.max ?? 0))[lastIndex2];
-    maxValueRef.current[lastIndex2] = Math.round(maxValueRef.current[lastIndex2] * 10) / 10;
-    minValueRef.current[lastIndex2] = channels.map((ch => ch.min ?? 0))[lastIndex2];
-    minValueRef.current[lastIndex2] = Math.round(minValueRef.current[lastIndex2] * 10) / 10;
-    avgValueRef.current[lastIndex2] = channels.map((ch => ch.avg ?? 0))[lastIndex2];
-    avgValueRef.current[lastIndex2] = Math.round(avgValueRef.current[lastIndex2] * 10) / 10;
+    
+    if (bodyTempIndex !== -1) {
+      updateChannelData(bodyTempIndex, 1);
+    }
+    
+    // Check if blood pressure and body temperature channels are updated
+    const bodyTempChannel = channels[bodyTempIndex];
+    
+    if (!bodyTempChannel?.updated) return;
 
-  
-    // update log lines for blood pressure
-    const bpIndex = allBuffers.length-2;
+    
+    // Get latest blood pressure value
     const bpData = dataRef.current[bpIndex];
     const bpHead = headRef.current[bpIndex];
-    const bpIdx = bpHead % bpData.length;
-    const bpValue = bpData[headRef.current[allBuffers.length-2]-1];
+    const bpValue = bpData && bpHead > 0 ? bpData[(bpHead - 1) % bpData.length] : NaN;
 
-    // update log lines for body temperature
-    const bodyTempIndex = allBuffers.length-1;
+    // Get latest body temperature value
     const bodyTempData = dataRef.current[bodyTempIndex];
     const bodyTempHead = headRef.current[bodyTempIndex];
-    const bodyTempIdx = bodyTempHead % bodyTempData.length;
-    const bodyTempValue = bodyTempData[headRef.current[allBuffers.length-1]-1];
+    const bodyTempValue = bodyTempData && bodyTempHead > 0 ? bodyTempData[(bodyTempHead - 1) % bodyTempData.length] : NaN;
 
-    // console.log("Blood Pressure Value:", bpValue);
-    // console.log("Body Temperature Value:", bodyTempValue);
-
-    // we want to show both blood pressure and body temperature in the log
-    // if (containerRef2.current) {
-    //   containerRef2.current.scrollTop = containerRef2.current.scrollHeight;
-    // }
     const date = new Date();
-    const showTime = date.getHours() 
-    + ':' + date.getMinutes() 
-    + ":" + date.getSeconds();
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    const seconds = date.getSeconds().toString().padStart(2, '0');
+    const showTime = `${hours}:${minutes}:${seconds}`;
     setLinesBp(prev => {
       if (isNaN(bpValue)) {
         return prev;
@@ -151,18 +123,22 @@ export const Medical: React.FC = () => {
         currentHead={headRef.current[0]}
         xAxisDataPoints={lenRef.current[0]}
         numSeries={1}
-        bufferCapacity={4096}
+        bufferCapacity={2048}
         lineColors={["#afa22bff"]}
         graphTitle="ECG"
+        storeMin={minValueRef.current[0]}
+        storeMax={maxValueRef.current[0]}
       /> 
       <FastLineCanvas 
         valuesList={[dataRef.current[1]]}
         currentHead={headRef.current[1]}
         xAxisDataPoints={lenRef.current[1]}
         numSeries={1}
-        bufferCapacity={4096}
+        bufferCapacity={2048}
         lineColors={["#2faf2bff"]}
         graphTitle="Pulse"
+        storeMin={minValueRef.current[1]}
+        storeMax={maxValueRef.current[1]}
       />
 
       <FastLineCanvas 
@@ -170,9 +146,11 @@ export const Medical: React.FC = () => {
         currentHead={headRef.current[2]}
         xAxisDataPoints={lenRef.current[2]}
         numSeries={1}
-        bufferCapacity={4096}
+        bufferCapacity={2048}
         lineColors={["#ca4821ff"]}
         graphTitle="Resp"
+        storeMin={minValueRef.current[2]}
+        storeMax={maxValueRef.current[2]}
       />
       </div> 
       <div

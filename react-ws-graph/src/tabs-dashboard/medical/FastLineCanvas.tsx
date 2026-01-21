@@ -20,6 +20,10 @@ type Props = {
   xAxisDataPoints?: number;
   lineColors?: string[];
   graphTitle?:string;
+  
+  // Min/max values from data store (prevents recalculation and trembling)
+  storeMin?: number;
+  storeMax?: number;
 };
 
 
@@ -35,9 +39,11 @@ export default function FastLineCanvas({
   bufferCapacity = 4096,
   width = 800,
   height = 300,
-  xAxisDataPoints = 2000,
+  xAxisDataPoints = 2048,
   lineColors:extLineColors,
-  graphTitle
+  graphTitle,
+  storeMin,
+  storeMax
 }: Props) {
   const { theme } = useTheme();
   const [ isDark, setIsDark ] = useState<boolean>();
@@ -80,7 +86,7 @@ export default function FastLineCanvas({
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     // visual parameters
-    const drawPadding = 1; // px padding from edges
+    const drawPadding = 4; // px padding from edges
     const innerW = targetW - drawPadding * 2;
     const innerH = targetH - drawPadding * 2;
 
@@ -103,7 +109,7 @@ export default function FastLineCanvas({
     const numOftotalSeries = localValuesList.length;
     const head = extHead !== undefined ? extHead : 0;
     const localCap = bufferCapacity? bufferCapacity : 2048;
-    const xAxisDataPointsToShow = Math.min(xAxisDataPoints, localCap);
+    const xAxisDataPointsToShow = Math.min(xAxisDataPoints, localCap, head);
 
     if (xAxisDataPointsToShow <= 1 || head < 0) {
       //clear to background
@@ -112,34 +118,44 @@ export default function FastLineCanvas({
       rafRef.current = requestAnimationFrame(canvasAnimate);
       return;
     }
-    // console.log("head:",head," xAxisDataPointsToShow:",xAxisDataPointsToShow);
-    const start = (head - xAxisDataPointsToShow)%xAxisDataPointsToShow;
-    // autoscale across all series with a decimated scan for performance
-    let min = Infinity, max = -Infinity;
-    const step = Math.max(1, Math.floor(xAxisDataPointsToShow / 1200)); // scan at most ~1200 points
     
-    // To find min and max
+    // Calculate min/max from visible buffer data
+    let min = Infinity;
+    let max = -Infinity;
+    const step = Math.max(1, Math.floor(xAxisDataPointsToShow / 500));
+    
     for (let s = 0; s < numOftotalSeries; s++) {
-      let idx = start;
-      for (let i = 4; i < xAxisDataPointsToShow; i += step) {
-        idx = (idx + step) % xAxisDataPointsToShow;
+      for (let i = 0; i < xAxisDataPointsToShow; i += step) {
+        // Proper circular buffer index calculation
+        const idx = ((head - xAxisDataPointsToShow + i) % localCap + localCap) % localCap;
         const v = localValuesList[s][idx];
         if (!Number.isFinite(v)) continue;
         if (v < min) min = v;
         if (v > max) max = v;
       }
     }
-    minValue = min;
-    minValue = Math.round(minValue*10)/10;
-    maxValue = max;
-    maxValue = Math.round(maxValue*10)/10;
-    setValues({minValues:minValue,maxValue:maxValue});
-    //console.log("Min Value:",minValue," Max Value:",maxValue);
+    
+    // Use store min/max as fallback or if calculated values are invalid
     if (!Number.isFinite(min) || !Number.isFinite(max) || min === max) {
-      // fallback range
-      min = isFinite(min) ? min - 1 : -1;
-      max = min + 2;
+      if (storeMin !== undefined && storeMax !== undefined && Number.isFinite(storeMin) && Number.isFinite(storeMax)) {
+        min = storeMin;
+        max = storeMax;
+      } else {
+        min = isFinite(min) ? min - 1 : -1;
+        max = min + 2;
+      }
     }
+    
+    // Display values (actual data range)
+    const displayMin = Math.round(min * 10) / 10;
+    const displayMax = Math.round(max * 10) / 10;
+    setValues({minValues: displayMin, maxValue: displayMax});
+    
+    // Add small margin only to top to prevent clipping
+    const range = max - min;
+    const topMargin = range * 0.05;
+    const drawMin = min;
+    const drawMax = max + topMargin;
     //--- Create Grid lines ---
     if (grid_set===false){
       grid_set=true;    
@@ -183,22 +199,25 @@ export default function FastLineCanvas({
       ctx.lineCap = "round";
       ctx.strokeStyle = color;
       ctx.beginPath();
-      let idx = start;
-      for (let i = 0;  i < xAxisDataPointsToShow; i += step) {
-        idx = (idx + step) % xAxisDataPointsToShow;
+      
+      let firstPoint = true;
+      for (let i = 0; i < xAxisDataPointsToShow; i++) {
+        // Proper circular buffer index calculation
+        const idx = ((head - xAxisDataPointsToShow + i) % localCap + localCap) % localCap;
         const v = vals[idx];
-        const vy = (v - min) / (max - min);
+        
+        if (!Number.isFinite(v)) continue;
+        
+        const vy = (v - drawMin) / (drawMax - drawMin);
         const y = drawPadding + clamp(1 - vy, 0, 1) * innerH;
-        const x = i;
+        const x = drawPadding + (i / xAxisDataPointsToShow) * innerW;
         
-        //Moves the “pen” to position (x, y)
-        //Does NOT draw anything
-        //Used to set the starting point of a path
-        if (i === 4) 
+        if (firstPoint) {
           ctx.moveTo(x, y);
-        
-        if (i > 4)
+          firstPoint = false;
+        } else {
           ctx.lineTo(x, y);
+        }
       }
       ctx.stroke();
     }
