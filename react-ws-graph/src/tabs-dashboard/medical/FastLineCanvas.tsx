@@ -24,6 +24,12 @@ type Props = {
   // Min/max values from data store (prevents recalculation and trembling)
   storeMin?: number;
   storeMax?: number;
+  
+  // Show top border (for first graph in a stack)
+  showTopBorder?: boolean;
+  
+  // Rounded top-left corner
+  roundedTopLeft?: boolean;
 };
 
 
@@ -43,10 +49,12 @@ export default function FastLineCanvas({
   lineColors:extLineColors,
   graphTitle,
   storeMin,
-  storeMax
+  storeMax,
+  showTopBorder = false,
+  roundedTopLeft = false
 }: Props) {
   const { theme } = useTheme();
-  const [ isDark, setIsDark ] = useState<boolean>();
+  const [ isDark, setIsDark ] = useState<boolean>(theme === "dark");
 
   // refs and state
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -71,11 +79,8 @@ export default function FastLineCanvas({
     const ctx = canvas.getContext("2d", { alpha: false });
     if (!ctx) return;
     if (!running) return;
-    if (!extValuesList) return;// valuesRefList.current = extValuesList; 
-    // if any external value undefined, skip
-    for (let s = 0; s < extValuesList.length; s++) {
-      if (!extValuesList[s]) return;
-    }
+    
+    // Update theme state
     if (theme === "dark") setIsDark(true);
       else setIsDark(false);
 
@@ -88,6 +93,27 @@ export default function FastLineCanvas({
     canvas.height = Math.floor(targetH * dpr);
     // reset transform to device pixels then work in CSS pixels
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    
+    // Determine background color based on current isDark state
+    const bgColor = (theme === "dark") ? "#0b1220" : "#d1deeeff";
+    
+    // If no data, just draw background and return
+    if (!extValuesList) {
+      ctx.fillStyle = bgColor;
+      ctx.fillRect(0, 0, targetW, targetH);
+      rafRef.current = requestAnimationFrame(canvasAnimate);
+      return;
+    }
+    
+    // if any external value undefined, draw background and skip
+    for (let s = 0; s < extValuesList.length; s++) {
+      if (!extValuesList[s]) {
+        ctx.fillStyle = bgColor;
+        ctx.fillRect(0, 0, targetW, targetH);
+        rafRef.current = requestAnimationFrame(canvasAnimate);
+        return;
+      }
+    }
 
     // visual parameters
     const drawPadding = 4; // px padding from edges
@@ -106,7 +132,6 @@ export default function FastLineCanvas({
     }
     
     const gridColor = isDark ? "#263238" : "#4e6696ff";
-    const bgColor = isDark ? "#0b1220" : "#d1deeeff";
     
     const localValuesList = extValuesList ? extValuesList : [];
 
@@ -257,7 +282,7 @@ export default function FastLineCanvas({
   // render container and canvas
   return (
       <div 
-       className={`border-t-0 border-l-0 border rounded-tl relative`}
+       className={`${showTopBorder ? 'border' : 'border-t-0 border'} ${roundedTopLeft ? 'rounded-tl-lg' : ''} relative`}
        style={{width:"100%", position:"relative", height: "33.3%"}}
        >
 

@@ -10,6 +10,8 @@ type Props = {
   Title3?: string;
   Unit3?: string;
   Value3?: string;
+  showTopBorder?: boolean;
+  roundedTopRight?: boolean;
 };
 
 export default function BigInfos({
@@ -22,13 +24,15 @@ export default function BigInfos({
   Value2,
   Title3,
   Unit3,
-  Value3
+  Value3,
+  showTopBorder = false,
+  roundedTopRight = false
 }: Props) {
 
   // render container
   return (
     <div 
-      className={`border-t-0 border-l-0 border flex relative flex-row justify-start`}
+      className={`${showTopBorder ? 'border-l border-r border-t' : 'border-l border-r border-t-0'} ${roundedTopRight ? 'rounded-tr-lg' : ''} border-b flex relative flex-row justify-start`}
       style={{width:"100%",  height: "33.3%"}}
     >
             
@@ -37,6 +41,7 @@ export default function BigInfos({
         title={Title1 ?? ""}
         value= {Value1 ?? "0"}
         unit={Unit1 ?? ""}
+        isLast={false}
       />
 
       <OneInfoBox
@@ -44,6 +49,7 @@ export default function BigInfos({
         title={Title2 ?? ""}
         value= {Value2 ?? "0"}
         unit={Unit2 ?? ""}
+        isLast={false}
       />
 
       <OneInfoBox
@@ -51,6 +57,7 @@ export default function BigInfos({
         title={Title3 ?? ""}
         value= {Value3 ?? "0"}
         unit={Unit3 ?? ""}
+        isLast={true}
         />
     </div>
       
@@ -61,16 +68,18 @@ const OneInfoBox = ({
   title,
   value,
   unit,
-  color
+  color,
+  isLast = false
 }: {
   title: string;
   value: string;
   unit: string;
   color?: string;
+  isLast?: boolean;
 }) => {
   return (
     <div 
-      className="flex-col w-1/3 border borer-r-0 border-b-0 border-l-1 border-t-0 border-gray-550"
+      className={`flex-col w-1/3 ${isLast ? '' : 'border-r'} border-t-0 border-b-0 border-l-0 border-gray-550`}
     >
       <div className="font-mono font-semibold"
         style={{color: color}}

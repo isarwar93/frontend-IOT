@@ -65,6 +65,11 @@ export function addValues(name: string, current: number, values: number[], max: 
 
 
 let ws: WebSocket | null = null;
+let reconnectTimer: NodeJS.Timeout | null = null;
+let reconnectAttempts = 0;
+const MAX_RECONNECT_ATTEMPTS = 5;
+const RECONNECT_DELAY = 2000; // 2 seconds
+
 export function connectWebSocket() {
   if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return ws;
   const key: WSKey = MAC; 
@@ -72,7 +77,36 @@ export function connectWebSocket() {
   const safeMac = key.replace(/:/g, "_");
   const url = `${WS_BASE}/ws/ble/graph/mac=${encodeURIComponent(safeMac)}`;
 
+  console.log(`Attempting to connect to WebSocket: ${url}`);
+  
   ws = new WebSocket(url);
+  
+  ws.onopen = () => {
+    console.log("WebSocket connected successfully");
+    reconnectAttempts = 0; // Reset on successful connection
+  };
+  
+  ws.onerror = (error) => {
+    console.error("WebSocket error:", error);
+  };
+  
+  ws.onclose = (event) => {
+    console.log("WebSocket closed:", event.code, event.reason);
+    ws = null;
+    
+    // Attempt to reconnect if not manually closed
+    if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS && event.code !== 1000) {
+      reconnectAttempts++;
+      console.log(`Reconnect attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS} in ${RECONNECT_DELAY}ms...`);
+      
+      reconnectTimer = setTimeout(() => {
+        connectWebSocket();
+      }, RECONNECT_DELAY);
+    } else if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+      console.error("Max reconnection attempts reached. Please check your connection.");
+    }
+  };
+  
   ws.onmessage = (ev) => {
     try {
       const m = JSON.parse(typeof ev.data === "string" ? ev.data : "");
@@ -144,7 +178,21 @@ export function connectWebSocket() {
 }
 
 export function disconnectWebSocket() {
-  try { ws?.close(); } catch {}
+  // Clear any pending reconnection attempts
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+  reconnectAttempts = 0;
+  
+  try { 
+    if (ws) {
+      ws.onclose = null; // Prevent reconnection on manual disconnect
+      ws.close(1000, "Manual disconnect"); // 1000 = normal closure
+    }
+  } catch (error) {
+    console.error("Error closing WebSocket:", error);
+  }
   // // clean all buffers
   // channels = [];
   // useDataStore.getState().setChannels([]);

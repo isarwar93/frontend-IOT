@@ -125,9 +125,11 @@ export const Medical: React.FC = () => {
         numSeries={1}
         bufferCapacity={2048}
         lineColors={["#10b981"]}
-        graphTitle="💚 ECG"
+        graphTitle="ECG"
         storeMin={minValueRef.current[0]}
         storeMax={maxValueRef.current[0]}
+        showTopBorder={true}
+        roundedTopLeft={true}
       /> 
       <FastLineCanvas 
         valuesList={[dataRef.current[1]]}
@@ -136,7 +138,7 @@ export const Medical: React.FC = () => {
         numSeries={1}
         bufferCapacity={2048}
         lineColors={["#3b82f6"]}
-        graphTitle="💙 Pulse"
+        graphTitle="Pulse"
         storeMin={minValueRef.current[1]}
         storeMax={maxValueRef.current[1]}
       />
@@ -148,7 +150,7 @@ export const Medical: React.FC = () => {
         numSeries={1}
         bufferCapacity={2048}
         lineColors={["#f59e0b"]}
-        graphTitle="🧡 Respiration"
+        graphTitle="Respiration"
         storeMin={minValueRef.current[2]}
         storeMax={maxValueRef.current[2]}
       />
@@ -162,12 +164,14 @@ export const Medical: React.FC = () => {
           Title1="MIN"
           Unit1="mV"
           Value1={minValueRef.current[0] !== undefined ? minValueRef.current[0].toString() : "0"}
-          Title2="MAX"
+          Title2="AVG"
           Unit2="mV"
-          Value2={maxValueRef.current[0] !== undefined ? maxValueRef.current[0].toString() : "0"}
-          Title3="AVG"
+          Value2={avgValueRef.current[0] !== undefined ? avgValueRef.current[0].toString() : "0"}
+          Title3="MAX" 
           Unit3="mV"
-          Value3={avgValueRef.current[0] !== undefined ? avgValueRef.current[0].toString() : "0"}
+          Value3={maxValueRef.current[0] !== undefined ? maxValueRef.current[0].toString() : "0"}
+          showTopBorder={true}
+          roundedTopRight={true}
         />
         
         <BigInfos
@@ -175,12 +179,12 @@ export const Medical: React.FC = () => {
           Title1="MIN"
           Unit1="bpm"
           Value1={minValueRef.current[1] !== undefined ? minValueRef.current[1].toString() : "0"}
-          Title2="MAX"
+          Title2="AVG"
           Unit2="bpm"
-          Value2={maxValueRef.current[1] !== undefined ? maxValueRef.current[1].toString() : "0"}
-          Title3="AVG"
+          Value2={avgValueRef.current[1] !== undefined ? avgValueRef.current[1].toString() : "0"}
+          Title3="MAX"
           Unit3="bpm"
-          Value3={avgValueRef.current[1] !== undefined ? avgValueRef.current[1].toString() : "0"}
+          Value3={maxValueRef.current[1] !== undefined ? maxValueRef.current[1].toString() : "0"}
         />
 
         <BigInfos
@@ -188,12 +192,12 @@ export const Medical: React.FC = () => {
           Title1="MIN"
           Unit1="bpm"
           Value1={minValueRef.current[2] !== undefined ? minValueRef.current[2].toString() : "0"}
-          Title2="MAX"
+          Title2="AVG"
           Unit2="bpm"
-          Value2={maxValueRef.current[2] !== undefined ? maxValueRef.current[2].toString() : "0"}
-          Title3="AVG" 
+          Value2={avgValueRef.current[2] !== undefined ? avgValueRef.current[2].toString() : "0"}
+          Title3="MAX" 
           Unit3="bpm"
-          Value3={avgValueRef.current[2] !== undefined ? avgValueRef.current[2].toString() : "0"}
+          Value3={maxValueRef.current[2] !== undefined ? maxValueRef.current[2].toString() : "0"}
         /> 
       </div>
 
@@ -203,12 +207,12 @@ export const Medical: React.FC = () => {
       style={{width:"100%",height:"165px"}}
       > 
 
-      <div className="grid grid-cols-3 gap-2 h-full">
+      <div className="grid grid-cols-4 gap-2 h-full">
         <div
           className="border-2 border-blue-400/30 dark:border-cyan-500/30 p-2 rounded-lg bg-gradient-to-br from-blue-50 via-white to-cyan-50 dark:from-blue-950/50 dark:via-slate-900 dark:to-cyan-950/50 shadow-lg flex flex-col min-h-0 overflow-hidden"
         >
           <h2 className="font-bold text-sm mb-1 text-blue-700 dark:text-cyan-400 flex items-center gap-1.5 flex-shrink-0">
-            <span className="text-base">👤</span> Patient Info
+            <span className="text-base">👤</span> User Info
           </h2>
           <div className="flex-1 text-slate-700 dark:text-slate-300 font-mono text-xs overflow-y-auto rounded p-1.5 bg-white/50 dark:bg-slate-950/50 border border-blue-200 dark:border-blue-800 min-h-0" 
           >
@@ -221,12 +225,29 @@ export const Medical: React.FC = () => {
           </div>
         </div>
 
+        <div
+          className="border-2 border-purple-400/30 dark:border-purple-500/30 p-2 rounded-lg bg-gradient-to-br from-purple-50 via-white to-violet-50 dark:from-purple-950/50 dark:via-slate-900 dark:to-violet-950/50 shadow-lg flex flex-col min-h-0 overflow-hidden"
+        >
+          <h2 className="font-bold text-sm mb-1 text-purple-700 dark:text-purple-400 flex items-center gap-1.5 flex-shrink-0">
+            <span className="text-base">🏠</span> Room Conditions
+          </h2>
+          <div className="flex-1 text-slate-700 dark:text-slate-300 font-mono text-xs overflow-y-auto rounded p-1.5 bg-white/50 dark:bg-slate-950/50 border border-purple-200 dark:border-purple-800 min-h-0" 
+          >
+            <p className="leading-relaxed">
+              <span className="text-purple-600 dark:text-purple-400 font-semibold">Temperature:</span> 23.5 °C<br></br>
+              <span className="text-purple-600 dark:text-purple-400 font-semibold">Humidity:</span> 45%<br></br>
+              <span className="text-purple-600 dark:text-purple-400 font-semibold">Pressure:</span> 1013 hPa<br></br>
+              <span className="text-purple-600 dark:text-purple-400 font-semibold">Air Quality:</span> Good<br></br>
+            </p>
+          </div>
+        </div>
+
 
         <div
           className="border-2 border-red-400/30 dark:border-pink-500/30 p-2 rounded-lg bg-gradient-to-br from-red-50 via-white to-pink-50 dark:from-red-950/50 dark:via-slate-900 dark:to-pink-950/50 shadow-lg flex flex-col min-h-0 overflow-hidden"
         >
           <h2 className="font-bold text-sm mb-1 text-red-700 dark:text-pink-400 flex items-center gap-1.5 flex-shrink-0">
-            <span className="text-base">❤️</span> BP Inst
+            <span className="text-base">❤️</span> Blood Pressure
           </h2>
           <div className="flex-1 text-slate-700 dark:text-slate-300 font-mono text-xs overflow-y-auto rounded p-1.5 bg-white/50 dark:bg-slate-950/50 border border-red-200 dark:border-red-800 min-h-0" 
           ref={containerRef2}
