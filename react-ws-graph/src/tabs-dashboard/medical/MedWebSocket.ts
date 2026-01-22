@@ -121,9 +121,6 @@ export function connectWebSocket() {
         const max = sensorData?.max || null;
         const min = sensorData?.min || null;
         const avg = sensorData?.avg || null;
-        if (sensorName === "blood_pressure" || sensorName === "body_temperature") {
-          console.log(`Received ${sensorName} data:`, sensorData);
-        }
         addValues(sensorName,current, past_values, max, min, avg);
 
       }

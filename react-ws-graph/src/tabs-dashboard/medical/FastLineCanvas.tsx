@@ -25,6 +25,9 @@ type Props = {
   storeMin?: number;
   storeMax?: number;
   
+  // Use fixed axis or auto scale
+  useFixedAxis?: boolean;
+  
   // Show top border (for first graph in a stack)
   showTopBorder?: boolean;
   
@@ -50,6 +53,7 @@ export default function FastLineCanvas({
   graphTitle,
   storeMin,
   storeMax,
+  useFixedAxis = false,
   showTopBorder = false,
   roundedTopLeft = false
 }: Props) {
@@ -152,27 +156,34 @@ export default function FastLineCanvas({
     // Calculate min/max from visible buffer data
     let min = Infinity;
     let max = -Infinity;
-    const step = Math.max(1, Math.floor(xAxisDataPointsToShow / 500));
     
-    for (let s = 0; s < numOftotalSeries; s++) {
-      for (let i = 0; i < xAxisDataPointsToShow; i += step) {
-        // Proper circular buffer index calculation
-        const idx = ((head - xAxisDataPointsToShow + i) % localCap + localCap) % localCap;
-        const v = localValuesList[s][idx];
-        if (!Number.isFinite(v)) continue;
-        if (v < min) min = v;
-        if (v > max) max = v;
+    // Use fixed axis if enabled, otherwise calculate from data
+    if (useFixedAxis && storeMin !== undefined && storeMax !== undefined && Number.isFinite(storeMin) && Number.isFinite(storeMax)) {
+      min = storeMin;
+      max = storeMax;
+    } else {
+      const step = Math.max(1, Math.floor(xAxisDataPointsToShow / 500));
+      
+      for (let s = 0; s < numOftotalSeries; s++) {
+        for (let i = 0; i < xAxisDataPointsToShow; i += step) {
+          // Proper circular buffer index calculation
+          const idx = ((head - xAxisDataPointsToShow + i) % localCap + localCap) % localCap;
+          const v = localValuesList[s][idx];
+          if (!Number.isFinite(v)) continue;
+          if (v < min) min = v;
+          if (v > max) max = v;
+        }
       }
-    }
-    
-    // Use store min/max as fallback or if calculated values are invalid
-    if (!Number.isFinite(min) || !Number.isFinite(max) || min === max) {
-      if (storeMin !== undefined && storeMax !== undefined && Number.isFinite(storeMin) && Number.isFinite(storeMax)) {
-        min = storeMin;
-        max = storeMax;
-      } else {
-        min = isFinite(min) ? min - 1 : -1;
-        max = min + 2;
+      
+      // Use store min/max as fallback or if calculated values are invalid
+      if (!Number.isFinite(min) || !Number.isFinite(max) || min === max) {
+        if (storeMin !== undefined && storeMax !== undefined && Number.isFinite(storeMin) && Number.isFinite(storeMax)) {
+          min = storeMin;
+          max = storeMax;
+        } else {
+          min = isFinite(min) ? min - 1 : -1;
+          max = min + 2;
+        }
       }
     }
     
@@ -183,11 +194,13 @@ export default function FastLineCanvas({
       smoothMaxRef.current = max;
     } else {
       smoothMinRef.current = smoothMinRef.current * (1 - smoothingFactor) + min * smoothingFactor;
-      smoothMaxRef.current = smoothMaxRef.current * (1 - smoothingFactor) + max * smoothingFactor;
+      if (smoothMaxRef.current !== null) {
+        smoothMaxRef.current = smoothMaxRef.current * (1 - smoothingFactor) + max * smoothingFactor;
+      }
     }
     
-    const smoothMin = smoothMinRef.current;
-    const smoothMax = smoothMaxRef.current;
+    const smoothMin = smoothMinRef.current ?? 0;
+    const smoothMax = smoothMaxRef.current ?? 100;
     
     // Display values (actual data range)
     const displayMin = Math.round(smoothMin * 10) / 10;

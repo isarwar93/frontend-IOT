@@ -1,4 +1,5 @@
 import { useUIStore } from "../store/useUIStore";
+import { useGraphStore } from "../store/useGraphStore";
 import { Switch } from "@/components/ui/Switch";
 import { ConfigLoadSaveWidget } from "../components/ConfigLoadSaveWidget";
 import { useEffect } from "react";
@@ -82,6 +83,81 @@ const WebsocketFpsSettings = () => {
   );
 };
 
+const BufferSizeControl = () => {
+  const bufferSize = useGraphStore((s) => s.bufferSize);
+  const setBufferSize = useGraphStore((s) => s.setBufferSize);
+
+  const handleBufferSizeChange = (value: number) => {
+    if (!isNaN(value)) {
+      setBufferSize(value);
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-between">
+      <label className="text-base">Buffer Size</label>
+      <input
+        type="number"
+        min={10}
+        max={50000}
+        className="p-1 w-20 rounded border bg-muted text-foreground"
+        value={bufferSize}
+        onChange={(e) => handleBufferSizeChange(Number(e.target.value))}
+        onBlur={() => {
+          if (bufferSize < 10) handleBufferSizeChange(10);
+          if (bufferSize > 50000) handleBufferSizeChange(50000);
+        }}
+      />
+    </div>
+  );
+};
+
+const YAxisControl = () => {
+  const axis = useGraphStore((s) => s.axis);
+  const setAxis = useGraphStore((s) => s.setAxis);
+
+  return (
+    <>
+      <div className="flex items-center justify-between">
+        <span>Y-Axis Auto Scale</span>
+        <Switch 
+          checked={!axis.fixed} 
+          onCheckedChange={(checked) => setAxis({ fixed: !checked })} 
+        />
+      </div>
+      
+      {axis.fixed && (
+        <>
+          <div className="flex items-center justify-between">
+            <label className="text-base">Y-Min</label>
+            <input
+              type="number"
+              className="p-1 w-20 rounded border bg-muted text-foreground"
+              value={axis.min}
+              onChange={(e) => {
+                const val = Number(e.target.value);
+                if (!isNaN(val)) setAxis({ min: val });
+              }}
+            />
+          </div>
+          <div className="flex items-center justify-between">
+            <label className="text-base">Y-Max</label>
+            <input
+              type="number"
+              className="p-1 w-20 rounded border bg-muted text-foreground"
+              value={axis.max}
+              onChange={(e) => {
+                const val = Number(e.target.value);
+                if (!isNaN(val)) setAxis({ max: val });
+              }}
+            />
+          </div>
+        </>
+      )}
+    </>
+  );
+};
+
 const GraphSettings=() => {
 
   const showGrid = useUIStore((s) => s.showGrid);
@@ -97,6 +173,9 @@ const GraphSettings=() => {
       <div className="border p-4 rounded-md space-y-4"
       style={{width:"33%"}}>
         <h2 className="text-xl font-bold">Graph Settings</h2>
+        
+        <BufferSizeControl />
+        <YAxisControl />
 
         <div className="flex items-center justify-between">
           <span>Show Grid</span>

@@ -8,20 +8,19 @@ const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 export async function login(username: string, password: string): Promise<boolean> {
     try {
         const body = `username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}`;
-        console.log("trying");
         const response = await axios.post(`${BASE_URL}/login`, body, {
           headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          responseType: 'text',
+          validateStatus: (status) => status === 200 || status === 204,
         });
         
-        console.log("tried");
-        if (response.status === 200) {
+        if (response.status === 200 || response.status === 204) {
           useUIStore.getState().setUsername(username); // Store globally
           return true;
         }
         return false;
     } 
     catch (error) {
-        console.error("Login failed:", error);
         return false;
     }
 }

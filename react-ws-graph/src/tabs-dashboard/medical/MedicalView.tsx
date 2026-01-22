@@ -4,6 +4,7 @@ import FastLineCanvas from "./FastLineCanvas";
 import BigInfos from "./BigInfos";
 import { initChannels  } from "./MedWebSocket";
 import { useDataStore } from "./useMedicalStore";
+import { useGraphStore } from "@/store/useGraphStore";
 
 
 export const Medical: React.FC = () => {
@@ -20,11 +21,16 @@ export const Medical: React.FC = () => {
   const [linesBodyTemp, setLinesBodyTemp] = useState<string[]>([]);
   const bpContainerRef = useRef<HTMLDivElement>(null);
   const bodyTempContainerRef = useRef<HTMLDivElement>(null);
+  
+  // Get buffer size and axis settings from useGraphStore
+  const bufferSize = useGraphStore((s) => s.bufferSize);
+  const axis = useGraphStore((s) => s.axis);
+  
   useEffect(() => {
     initChannels(["ecg", "heart_rate", "respiration_rate",
         "blood_pressure", "body_temperature"
-    ], 2048);// buffer size 2048
-  }, []);// run one time only
+    ], bufferSize);
+  }, [bufferSize]);
 
   useEffect(() => {
     if (channels.length === 0) return;
@@ -138,11 +144,12 @@ export const Medical: React.FC = () => {
         currentHead={headRef.current[0]}
         xAxisDataPoints={lenRef.current[0]}
         numSeries={1}
-        bufferCapacity={2048}
+        bufferCapacity={bufferSize}
         lineColors={["#10b981"]}
         graphTitle="ECG"
-        storeMin={minValueRef.current[0]}
-        storeMax={maxValueRef.current[0]}
+        storeMin={axis.fixed ? axis.min : minValueRef.current[0]}
+        storeMax={axis.fixed ? axis.max : maxValueRef.current[0]}
+        useFixedAxis={axis.fixed}
         showTopBorder={true}
         roundedTopLeft={true}
       /> 
@@ -151,11 +158,12 @@ export const Medical: React.FC = () => {
         currentHead={headRef.current[1]}
         xAxisDataPoints={lenRef.current[1]}
         numSeries={1}
-        bufferCapacity={2048}
+        bufferCapacity={bufferSize}
         lineColors={["#3b82f6"]}
         graphTitle="Pulse"
-        storeMin={minValueRef.current[1]}
-        storeMax={maxValueRef.current[1]}
+        storeMin={axis.fixed ? axis.min : minValueRef.current[1]}
+        storeMax={axis.fixed ? axis.max : maxValueRef.current[1]}
+        useFixedAxis={axis.fixed}
       />
 
       <FastLineCanvas 
@@ -163,11 +171,12 @@ export const Medical: React.FC = () => {
         currentHead={headRef.current[2]}
         xAxisDataPoints={lenRef.current[2]}
         numSeries={1}
-        bufferCapacity={2048}
+        bufferCapacity={bufferSize}
         lineColors={["#f59e0b"]}
         graphTitle="Respiration"
-        storeMin={minValueRef.current[2]}
-        storeMax={maxValueRef.current[2]}
+        storeMin={axis.fixed ? axis.min : minValueRef.current[2]}
+        storeMax={axis.fixed ? axis.max : maxValueRef.current[2]}
+        useFixedAxis={axis.fixed}
       />
       </div> 
       <div
