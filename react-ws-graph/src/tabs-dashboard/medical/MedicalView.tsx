@@ -18,7 +18,8 @@ export const Medical: React.FC = () => {
   const avgValueRef = useRef<number[]>([]);
   const [linesBp, setLinesBp] = useState<string[]>([]);
   const [linesBodyTemp, setLinesBodyTemp] = useState<string[]>([]);
-  const containerRef2 = useRef<HTMLDivElement>(null);
+  const bpContainerRef = useRef<HTMLDivElement>(null);
+  const bodyTempContainerRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     initChannels(["ecg", "heart_rate", "respiration_rate",
         "blood_pressure", "body_temperature"
@@ -85,7 +86,7 @@ export const Medical: React.FC = () => {
       if (isNaN(bpValue)) {
         return prev;
       }
-      const newLines = [...prev, `${showTime} → BP: ${bpValue.toFixed(1)} mmHg`];
+      const newLines = [...prev, `${showTime} → ${bpValue.toFixed(1)} mmHg`];
       // keep only last 20 lines
       return newLines.slice(-20);
     });
@@ -95,13 +96,27 @@ export const Medical: React.FC = () => {
       if (isNaN(bodyTempValue)) {
         return prev;
       }
-      const newLines = [...prev, ` ${showTime} ->  Body Temp: ${bodyTempValue.toFixed(1)} °C`  ];
+      const newLines = [...prev, `${showTime} → ${bodyTempValue.toFixed(1)} °C`];
       // keep only last 20 lines
       return newLines.slice(-20);
     });
 
     channels.forEach(ch => ch.updated = false);
   }, [channels]);
+
+  // Auto-scroll blood pressure to bottom when new lines are added
+  useEffect(() => {
+    if (bpContainerRef.current) {
+      bpContainerRef.current.scrollTop = bpContainerRef.current.scrollHeight;
+    }
+  }, [linesBp]);
+
+  // Auto-scroll body temperature to bottom when new lines are added
+  useEffect(() => {
+    if (bodyTempContainerRef.current) {
+      bodyTempContainerRef.current.scrollTop = bodyTempContainerRef.current.scrollHeight;
+    }
+  }, [linesBodyTemp]);
 
  
  
@@ -250,7 +265,7 @@ export const Medical: React.FC = () => {
             <span className="text-base">❤️</span> Blood Pressure
           </h2>
           <div className="flex-1 text-slate-700 dark:text-slate-300 font-mono text-xs overflow-y-auto rounded p-1.5 bg-white/50 dark:bg-slate-950/50 border border-red-200 dark:border-red-800 min-h-0" 
-          ref={containerRef2}
+          ref={bpContainerRef}
           >
             {linesBp.map((line, i) => (
               <div key={i} className="text-red-600 dark:text-pink-400 leading-tight">{line}</div>
@@ -265,7 +280,7 @@ export const Medical: React.FC = () => {
             <span className="text-base">🌡️</span> Body Temperature
           </h2>
           <div className="flex-1 text-slate-700 dark:text-slate-300 font-mono text-xs overflow-y-auto rounded p-1.5 bg-white/50 dark:bg-slate-950/50 border border-orange-200 dark:border-orange-800 min-h-0" 
-          ref={containerRef2}
+          ref={bodyTempContainerRef}
           >
             {linesBodyTemp.map((line, i) => (
               <div key={i} className="text-orange-600 dark:text-amber-400 leading-tight">{line}</div>
