@@ -248,7 +248,6 @@ export default function FastLineCanvas({
     // draw each series
     for (let s = 0; s < localValuesList.length; s++) {
       const vals = localValuesList[s];
-      // console.log("length of localValuesList[s]",vals.length);
       const color = colors[s % colors.length];
       ctx.lineWidth = 1.6 + (s === 0 ? 0.6 : 0);
       ctx.lineJoin = "round";

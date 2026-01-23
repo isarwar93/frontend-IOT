@@ -42,7 +42,6 @@ export const medReconnect = async () => {
     s.setBlePhase("disconnecting");
     const p = await apiPost(`/api/ble/disconnect`, { mac: m });
     s.setLastPost(p);
-    console.log("Disconnected from ", MAC);
     await new Promise((r) => setTimeout(r, 1000));
 
     s.setBlePhase("scanning");
@@ -59,7 +58,6 @@ export const medReconnect = async () => {
       //sometimes even disconnected from the cache it founds the device
       // therefore check the rssi, if rssi is less than -100 means disconnected
       if (item.mac === m && item.rssi > -100) {
-        console.log("Found device in scan:", item);
         device = item;
         found = true;
         break;
@@ -79,7 +77,6 @@ export const medReconnect = async () => {
     return device;
 
     } catch (e: any) {
-      console.error("Reconnect failed:", e);
       s.setBlePhase("error");
       s.setError(String(e?.message ?? e));
     }
@@ -97,12 +94,10 @@ export const medDisconnect = async () => {
     s.setBlePhase("disconnecting");
     const p = await apiPost(`/api/ble/disconnect`, { mac: m });
     s.setLastPost(p);
-    console.log("Disconnected from ", MAC);
     await new Promise((r) => setTimeout(r, 1000));
     return true;
 
   } catch (e: any) {
-    console.error("Reconnect failed:", e);
     s.setBlePhase("error");
     s.setError(String(e?.message ?? e));
     return false;
@@ -119,13 +114,11 @@ export const graphStart = async () => {
   if (s.blePhase !== "connected") {
     return "error: BLE not connected";
   }
-  console.log("Finding available services", MAC);
   const m = MAC;
   try {
     s.setGraphPhase("scanning");
     await new Promise((resolve) => setTimeout(resolve, 1000));
     const services = await apiGet(`/api/ble/services/${m}`);
-    console.log("Services:", services);
     s.setLastGet(services);
 
     if (!Array.isArray(services)) {
@@ -140,7 +133,6 @@ export const graphStart = async () => {
         if (Array.isArray(char.properties) && char.properties.includes("notify")) {
           // Enable notify on this characteristic
           try {
-            console.log("Enabling notify for", char.name,char.path,char.uuid);
             const notifyResp = await apiPost(`/api/ble/notify`, {
               mac: m, 
               path: char.path, 
@@ -150,7 +142,6 @@ export const graphStart = async () => {
             });
             s.setLastPost(notifyResp);
           } catch (e) {
-            console.error("Failed to enable notify for", char.uuid, e);
             s.setGraphPhase("error");
             return "error: Failed to enable notify for " + char.uuid;
           }
@@ -163,7 +154,6 @@ export const graphStart = async () => {
     return "started";
    
     } catch (e: any) {
-      console.error("Reconnect failed:", e);
       s.setGraphPhase("error");
       s.setError(String(e?.message ?? e));
       return "error: " + String(e?.message ?? e);
@@ -178,7 +168,6 @@ export const graphStop = async () => {
   if (s.blePhase !== "connected") {
     return "error: BLE not connected";
   }
-  console.log("Finding available services", MAC);
   const m = MAC;
 
   await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -186,7 +175,6 @@ export const graphStop = async () => {
   s.setGraphPhase("stopping");
   
   const services = await apiGet(`/api/ble/services/${m}`);
-  console.log("Services:", services);
   s.setLastGet(services);
 
   if (!Array.isArray(services)) {
@@ -201,7 +189,6 @@ export const graphStop = async () => {
       if (Array.isArray(char.properties) && char.properties.includes("notify")) {
         // Disable notify on this characteristic
         try {
-          console.log("Disabling notify for", char.name, char.path,char.uuid);
           const notifyResp = await apiPost(`/api/ble/notify`, {
             mac: m, 
             path: char.path,
@@ -211,7 +198,7 @@ export const graphStop = async () => {
           });
           s.setLastPost(notifyResp);
         } catch (e) {
-          console.error("Failed to disable notify for", char.uuid, e);
+          // Error handling
         }
       } 
     }

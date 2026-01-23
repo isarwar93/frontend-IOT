@@ -48,8 +48,6 @@ export function addValues(name: string, current: number, values: number[], max: 
   useDataStore.getState().updateMinMaxAvg(name, max, min, avg);
   useDataStore.getState().updated(name, true);
   useDataStore.getState().updateHead(name, ch.head);
-
-  // console.log("channel after addValues:", name, ch);
 }
 
 // export function addValue(name: string, value: number) {
@@ -76,34 +74,27 @@ export function connectWebSocket() {
 
   const safeMac = key.replace(/:/g, "_");
   const url = `${WS_BASE}/ws/ble/graph/mac=${encodeURIComponent(safeMac)}`;
-
-  console.log(`Attempting to connect to WebSocket: ${url}`);
   
   ws = new WebSocket(url);
   
   ws.onopen = () => {
-    console.log("WebSocket connected successfully");
     reconnectAttempts = 0; // Reset on successful connection
   };
   
   ws.onerror = (error) => {
-    console.error("WebSocket error:", error);
+    // Error handling
   };
   
   ws.onclose = (event) => {
-    console.log("WebSocket closed:", event.code, event.reason);
     ws = null;
     
     // Attempt to reconnect if not manually closed
     if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS && event.code !== 1000) {
       reconnectAttempts++;
-      console.log(`Reconnect attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS} in ${RECONNECT_DELAY}ms...`);
       
       reconnectTimer = setTimeout(() => {
         connectWebSocket();
       }, RECONNECT_DELAY);
-    } else if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-      console.error("Max reconnection attempts reached. Please check your connection.");
     }
   };
   
@@ -188,7 +179,7 @@ export function disconnectWebSocket() {
       ws.close(1000, "Manual disconnect"); // 1000 = normal closure
     }
   } catch (error) {
-    console.error("Error closing WebSocket:", error);
+    // Error handling
   }
   // // clean all buffers
   // channels = [];
