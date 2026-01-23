@@ -70,6 +70,7 @@ type MedicalState = {
   lastPost: unknown | null;
   lastWsMsg: string | null;
   error: string | null;
+  medicalBufferSize: number;
 
   setBlePhase: (p: BlePhase) => void;
   setGraphPhase: (s: GraphPhase) => void;
@@ -77,6 +78,7 @@ type MedicalState = {
   setLastPost: (v: unknown) => void;
   setLastWsMsg: (v: string) => void;
   setError: (e: string | null) => void;
+  setMedicalBufferSize: (size: number) => void;
   reset: () => void;
 };
 
@@ -87,6 +89,7 @@ export const useMedicalStore = create<MedicalState>((set) => ({
   lastPost: null,
   lastWsMsg: null,
   error: null,
+  medicalBufferSize: 2048,
 
   setBlePhase: (blePhase) => set({ blePhase }),
   setGraphPhase: (graphPhase) => set({ graphPhase }),
@@ -94,6 +97,7 @@ export const useMedicalStore = create<MedicalState>((set) => ({
   setLastPost: (lastPost) => set({ lastPost }),
   setLastWsMsg: (lastWsMsg) => set({ lastWsMsg }),
   setError: (error) => set({ error }),
+  setMedicalBufferSize: (medicalBufferSize) => set({ medicalBufferSize }),
   reset: () =>
     set({
       blePhase: "disconnected",
