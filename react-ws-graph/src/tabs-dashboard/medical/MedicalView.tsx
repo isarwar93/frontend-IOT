@@ -3,13 +3,14 @@ import MedTopBar  from "./MedTopBar";
 import FastLineCanvas from "./FastLineCanvas";
 import BigInfos from "./BigInfos";
 import { initChannels  } from "./MedWebSocket";
-import { useDataStore } from "./useMedicalStore";
+import { useDataStore, useMedicalStore } from "./useMedicalStore";
 
 
 export const Medical: React.FC = () => {
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const channels = useDataStore((s) => s.channels);
+  const medicalBufferSize = useMedicalStore((s) => s.medicalBufferSize);
   const dataRef = useRef<Float32Array[]>([]);
   const headRef = useRef<number[]>([]);
   const lenRef = useRef<number[]>([]);
@@ -23,8 +24,8 @@ export const Medical: React.FC = () => {
   useEffect(() => {
     initChannels(["ecg", "heart_rate", "respiration_rate",
         "blood_pressure", "body_temperature"
-    ], 2048);// buffer size 2048
-  }, []);// run one time only
+    ], medicalBufferSize);
+  }, [medicalBufferSize]);
 
   useEffect(() => {
     if (channels.length === 0) return;
@@ -136,9 +137,9 @@ export const Medical: React.FC = () => {
       <FastLineCanvas  
         valuesList={[dataRef.current[0]]}
         currentHead={headRef.current[0]}
-        xAxisDataPoints={lenRef.current[0]}
+        xAxisDataPoints={medicalBufferSize}
         numSeries={1}
-        bufferCapacity={2048}
+        bufferCapacity={medicalBufferSize}
         lineColors={["#10b981"]}
         graphTitle="ECG"
         storeMin={minValueRef.current[0]}
@@ -149,9 +150,9 @@ export const Medical: React.FC = () => {
       <FastLineCanvas 
         valuesList={[dataRef.current[1]]}
         currentHead={headRef.current[1]}
-        xAxisDataPoints={lenRef.current[1]}
+        xAxisDataPoints={medicalBufferSize}
         numSeries={1}
-        bufferCapacity={2048}
+        bufferCapacity={medicalBufferSize}
         lineColors={["#3b82f6"]}
         graphTitle="Pulse"
         storeMin={minValueRef.current[1]}
@@ -161,9 +162,9 @@ export const Medical: React.FC = () => {
       <FastLineCanvas 
         valuesList={[dataRef.current[2]]}
         currentHead={headRef.current[2]}
-        xAxisDataPoints={lenRef.current[2]}
+        xAxisDataPoints={medicalBufferSize}
         numSeries={1}
-        bufferCapacity={2048}
+        bufferCapacity={medicalBufferSize}
         lineColors={["#f59e0b"]}
         graphTitle="Respiration"
         storeMin={minValueRef.current[2]}

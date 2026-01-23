@@ -1,11 +1,9 @@
 // src/lib/websocket.ts
-import { use } from "react";
 import { useDataStore } from "./useMedicalStore";
 
 
 type WSKey = string; // `${mac}`
 const WS_BASE = import.meta.env.VITE_API_BASE_URL_WS ?? "";
-const HTTP_BASE = import.meta.env.VITE_API_BASE_URL ?? "";
 
 //TODO: Later Medical config, to set MAC address and characteristics to monitor
 const MAC=import.meta.env.VITE_API_BASE_MAC|| "";
@@ -76,34 +74,27 @@ export function connectWebSocket() {
 
   const safeMac = key.replace(/:/g, "_");
   const url = `${WS_BASE}/ws/ble/graph/mac=${encodeURIComponent(safeMac)}`;
-
-  console.log(`Attempting to connect to WebSocket: ${url}`);
   
   ws = new WebSocket(url);
   
   ws.onopen = () => {
-    console.log("WebSocket connected successfully");
     reconnectAttempts = 0; // Reset on successful connection
   };
   
-  ws.onerror = (error) => {
-    console.error("WebSocket error:", error);
+  ws.onerror = () => {
+    // Silent error handling
   };
   
   ws.onclose = (event) => {
-    console.log("WebSocket closed:", event.code, event.reason);
     ws = null;
     
     // Attempt to reconnect if not manually closed
     if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS && event.code !== 1000) {
       reconnectAttempts++;
-      console.log(`Reconnect attempt ${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS} in ${RECONNECT_DELAY}ms...`);
       
       reconnectTimer = setTimeout(() => {
         connectWebSocket();
       }, RECONNECT_DELAY);
-    } else if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
-      console.error("Max reconnection attempts reached. Please check your connection.");
     }
   };
   
@@ -121,9 +112,6 @@ export function connectWebSocket() {
         const max = sensorData?.max || null;
         const min = sensorData?.min || null;
         const avg = sensorData?.avg || null;
-        if (sensorName === "blood_pressure" || sensorName === "body_temperature") {
-          console.log(`Received ${sensorName} data:`, sensorData);
-        }
         addValues(sensorName,current, past_values, max, min, avg);
 
       }
@@ -191,7 +179,7 @@ export function disconnectWebSocket() {
       ws.close(1000, "Manual disconnect"); // 1000 = normal closure
     }
   } catch (error) {
-    console.error("Error closing WebSocket:", error);
+    // Silent error handling
   }
   // // clean all buffers
   // channels = [];

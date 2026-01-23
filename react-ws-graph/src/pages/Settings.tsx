@@ -2,7 +2,8 @@ import { useUIStore } from "../store/useUIStore";
 import { Switch } from "@/components/ui/Switch";
 import { ConfigLoadSaveWidget } from "../components/ConfigLoadSaveWidget";
 import { useEffect } from "react";
-import { apiPost } from "../hooks/api"
+import { apiPost } from "../hooks/api";
+import { useMedicalStore } from "../tabs-dashboard/medical/useMedicalStore";
 
 export const SettingsPage = () => {
   const showFps = useUIStore((s) => s.showFps);
@@ -82,10 +83,37 @@ const WebsocketFpsSettings = () => {
   );
 };
 
-const GraphSettings=() => {
+const BufferSizeSettings = () => {
+  const bufferSize = useMedicalStore((s) => s.medicalBufferSize);
+  const setBufferSize = useMedicalStore((s) => s.setMedicalBufferSize);
 
-  const showGrid = useUIStore((s) => s.showGrid);
-  const toggleGrid = useUIStore((s) => s.toggleGrid);
+  const handleBufferSizeChange = (value: number) => {
+    if (!isNaN(value)) {
+      setBufferSize(value);
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-between">
+        <label className="text-base">X-Axis Size</label>
+        <input
+          type="number"
+          min={512}
+          max={8192}
+          step={512}
+          className="p-1 w-20 rounded border bg-muted text-foreground"
+          value={bufferSize}
+          onChange={(e) => handleBufferSizeChange(Number(e.target.value))}
+          onBlur={() => {
+            if (bufferSize < 512) handleBufferSizeChange(512);
+            if (bufferSize > 8192) handleBufferSizeChange(8192);
+          }}
+        />
+    </div>
+  );
+};
+
+const GraphSettings=() => {
 
   const graphWidth = useUIStore((s) => s.graphWidth);
   const graphHeight = useUIStore((s) => s.graphHeight);
@@ -98,27 +126,6 @@ const GraphSettings=() => {
       style={{width:"33%"}}>
         <h2 className="text-xl font-bold">Graph Settings</h2>
 
-        <div className="flex items-center justify-between">
-          <span>Show Grid</span>
-          <Switch checked={showGrid} onCheckedChange={toggleGrid} />
-        </div>
-
-        <div className="flex items-center justify-between">
-          <span>Show Min</span>
-          <Switch checked={useUIStore((s) => s.showMin)} onCheckedChange={useUIStore.getState().toggleMin} />
-        </div>
-        <div className="flex items-center justify-between">
-          <span>Show Max</span>
-          <Switch checked={useUIStore((s) => s.showMax)} onCheckedChange={useUIStore.getState().toggleMax} />
-        </div>
-        <div className="flex items-center justify-between">
-          <span>Show Average</span>
-          <Switch checked={useUIStore((s) => s.showAvg)} onCheckedChange={useUIStore.getState().toggleAvg} />
-        </div>
-        <div className="flex items-center justify-between">
-          <span>Show Points</span>
-          <Switch checked={useUIStore((s) => s.showPoints)} onCheckedChange={useUIStore.getState().togglePoints} />
-        </div>
             {/* Width Input */}
             <div className="flex items-center justify-between">
               <label className="text-base">Width (%)</label>
@@ -157,6 +164,7 @@ const GraphSettings=() => {
                 }}
               />
                </div>
+        <BufferSizeSettings/>
       </div>
   );
 };
