@@ -14,7 +14,8 @@ export default function MedTopBar() {
     connectedDevices, setConnectedDevices,
     connectionStatus, setConnectionStatus,
   } = useBLEStore();
-  const [webSocketConnected, setWebSocketConnected] = useState(false);
+  const webSocketConnected = useMedicalStore((s) => s.webSocketConnected);
+  const setWebSocketConnected = useMedicalStore((s) => s.setWebSocketConnected);
   const simulationState = useUIStore((s) => s.simulation);
   const { blePhase, graphPhase} = useMedicalStore();
   const [bleConnected, setBleConnected] = useState(false);
@@ -34,7 +35,6 @@ export default function MedTopBar() {
     }
     setBleDevices(g);
     let obj: BLEDevice = {mac:g.mac,name:g.name,rssi:g.rssi};
-    console.log("BLE Device Object: ", obj);
     mac = obj.mac;
 
     setConnectedDevices([obj, ...connectedDevices]);
@@ -64,7 +64,6 @@ export default function MedTopBar() {
   const startGraph = async() => {
     // stopGraph(); // ensure stopped first
     const g = await graphStart();
-    console.log("Graph Start Result: ", g);
     if (g.toString().startsWith("error")) {
       return;
     }
@@ -73,7 +72,6 @@ export default function MedTopBar() {
   };
   const stopGraph = async() => {
     const g = await graphStop();
-    console.log("Graph Stop Result: ", g);
     if (g.toString().startsWith("error")) {
       return;
     }
