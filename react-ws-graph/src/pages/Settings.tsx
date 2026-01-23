@@ -95,7 +95,7 @@ const BufferSizeSettings = () => {
 
   return (
     <div className="flex items-center justify-between">
-        <label className="text-base">Buffer Size</label>
+        <label className="text-base">X-Axis Size</label>
         <input
           type="number"
           min={512}

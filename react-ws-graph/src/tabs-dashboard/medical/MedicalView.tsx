@@ -24,8 +24,8 @@ export const Medical: React.FC = () => {
   useEffect(() => {
     initChannels(["ecg", "heart_rate", "respiration_rate",
         "blood_pressure", "body_temperature"
-    ], 2048);// buffer size 2048
-  }, []);// run one time only
+    ], medicalBufferSize);
+  }, [medicalBufferSize]);
 
   useEffect(() => {
     if (channels.length === 0) return;
@@ -139,7 +139,7 @@ export const Medical: React.FC = () => {
         currentHead={headRef.current[0]}
         xAxisDataPoints={medicalBufferSize}
         numSeries={1}
-        bufferCapacity={2048}
+        bufferCapacity={medicalBufferSize}
         lineColors={["#10b981"]}
         graphTitle="ECG"
         storeMin={minValueRef.current[0]}
@@ -152,7 +152,7 @@ export const Medical: React.FC = () => {
         currentHead={headRef.current[1]}
         xAxisDataPoints={medicalBufferSize}
         numSeries={1}
-        bufferCapacity={2048}
+        bufferCapacity={medicalBufferSize}
         lineColors={["#3b82f6"]}
         graphTitle="Pulse"
         storeMin={minValueRef.current[1]}
@@ -164,7 +164,7 @@ export const Medical: React.FC = () => {
         currentHead={headRef.current[2]}
         xAxisDataPoints={medicalBufferSize}
         numSeries={1}
-        bufferCapacity={2048}
+        bufferCapacity={medicalBufferSize}
         lineColors={["#f59e0b"]}
         graphTitle="Respiration"
         storeMin={minValueRef.current[2]}
