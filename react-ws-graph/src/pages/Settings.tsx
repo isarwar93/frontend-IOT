@@ -115,9 +115,6 @@ const BufferSizeSettings = () => {
 
 const GraphSettings=() => {
 
-  const showGrid = useUIStore((s) => s.showGrid);
-  const toggleGrid = useUIStore((s) => s.toggleGrid);
-
   const graphWidth = useUIStore((s) => s.graphWidth);
   const graphHeight = useUIStore((s) => s.graphHeight);
   const setGraphWidth = useUIStore((s) => s.setGraphWidth);
@@ -129,27 +126,6 @@ const GraphSettings=() => {
       style={{width:"33%"}}>
         <h2 className="text-xl font-bold">Graph Settings</h2>
 
-        <div className="flex items-center justify-between">
-          <span>Show Grid</span>
-          <Switch checked={showGrid} onCheckedChange={toggleGrid} />
-        </div>
-
-        <div className="flex items-center justify-between">
-          <span>Show Min</span>
-          <Switch checked={useUIStore((s) => s.showMin)} onCheckedChange={useUIStore.getState().toggleMin} />
-        </div>
-        <div className="flex items-center justify-between">
-          <span>Show Max</span>
-          <Switch checked={useUIStore((s) => s.showMax)} onCheckedChange={useUIStore.getState().toggleMax} />
-        </div>
-        <div className="flex items-center justify-between">
-          <span>Show Average</span>
-          <Switch checked={useUIStore((s) => s.showAvg)} onCheckedChange={useUIStore.getState().toggleAvg} />
-        </div>
-        <div className="flex items-center justify-between">
-          <span>Show Points</span>
-          <Switch checked={useUIStore((s) => s.showPoints)} onCheckedChange={useUIStore.getState().togglePoints} />
-        </div>
             {/* Width Input */}
             <div className="flex items-center justify-between">
               <label className="text-base">Width (%)</label>
