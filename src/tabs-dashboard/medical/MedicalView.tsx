@@ -4,6 +4,7 @@ import FastLineCanvas from "./FastLineCanvas";
 import BigInfos from "./BigInfos";
 import { initChannels  } from "./MedWebSocket";
 import { useDataStore, useMedicalStore } from "./useMedicalStore";
+import config from '../../config.json';
 
 
 export const Medical: React.FC = () => {
@@ -233,10 +234,10 @@ export const Medical: React.FC = () => {
           <div className="flex-1 text-slate-700 dark:text-slate-300 font-mono text-xs overflow-y-auto rounded p-1.5 bg-white/50 dark:bg-slate-950/50 border border-blue-200 dark:border-blue-800 min-h-0" 
           >
             <p className="leading-relaxed">
-              <span className="text-blue-600 dark:text-cyan-400 font-semibold">Name:</span> Ismail <br></br>
-              <span className="text-blue-600 dark:text-cyan-400 font-semibold">Age:</span> 33 years<br></br>
-              <span className="text-blue-600 dark:text-cyan-400 font-semibold">Height:</span> 173 cm<br></br>
-              <span className="text-blue-600 dark:text-cyan-400 font-semibold">Weight:</span> 70.5 kg<br></br>
+              <span className="text-blue-600 dark:text-cyan-400 font-semibold">Name:</span> {config.userInfo.name} <br></br>
+              <span className="text-blue-600 dark:text-cyan-400 font-semibold">Age:</span> {config.userInfo.age}<br></br>
+              <span className="text-blue-600 dark:text-cyan-400 font-semibold">Height:</span> {config.userInfo.height}<br></br>
+              <span className="text-blue-600 dark:text-cyan-400 font-semibold">Weight:</span> {config.userInfo.weight}<br></br>
             </p>
           </div>
         </div>
